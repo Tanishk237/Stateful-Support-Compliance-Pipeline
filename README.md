@@ -1,111 +1,90 @@
 # Support & Compliance Pipeline
 
-A CLI-based workflow for handling customer billing complaint emails.
+**Support & Compliance Pipeline** is a stateful AI workflow for processing customer billing complaint emails. It extracts structured complaint data, validates required fields, asks for clarification when information is missing, verifies billing claims against a mock database, checks for sensitive information, and then either generates a customer response or creates an internal escalation ticket.
 
-The pipeline extracts complaint details, validates required fields, verifies the claim against a mock billing database, checks for PII/compliance risk, and then either:
+The project is built around LangGraph and a shared `WorkflowState`, so each step can read and update the same request state as the complaint moves through the pipeline.
 
-- generates a customer response
-- creates an internal escalation ticket
+## Architecture Diagram
 
-The workflow is built with LangGraph and uses a shared `WorkflowState` object across every step.
+![alt text](image-1.png)
 
-## Quick Start
+## Folder Structure
+
+```text
+Support & Compliance Pipeline/
+├── graph/
+│   └── workflow.py              # LangGraph state machine and route functions
+├── nodes/
+│   ├── extract.py               # Email to structured complaint data
+│   ├── validate.py              # Required field validation
+│   ├── clarify.py               # Clarification retry loop support
+│   ├── verify.py                # Mock billing database verification
+│   ├── compliance.py            # PII and compliance risk checks
+│   ├── response.py              # Customer response generation
+│   └── escalation.py            # Internal escalation ticket generation
+├── state/
+│   └── workflow_state.py        # Central WorkflowState model
+├── sample_emails/               # Ready-to-run sample complaint emails
+├── escalation_tickets/          # Saved internal escalation tickets
+├── tests/                       # Task 15 and node-level tests
+├── logger.py                    # Run log helpers
+├── main.py                      # User-friendly CLI entry point
+├── mock_db.py                   # Mock customer billing records
+├── models.py                    # Pydantic data models
+├── pii.py                       # Regex-based PII detection
+├── prompts.py                   # Prompt builders
+├── requirements.txt
+└── README.md
+```
+
+## State Design
+
+`WorkflowState` is the shared state object used by every node.
+
+Important fields:
+
+- `request_id`: auto-assigned request id used in logs, responses, and escalation tickets.
+- `raw_email`: original customer complaint text.
+- `conversation_history`: clarification messages generated during retries.
+- `retry_count`: number of clarification attempts.
+- `missing_fields`: required fields that are not available yet.
+- `extracted_information`: structured data and node-added metadata.
+- `validation_status`: `pending`, `passed`, `clarification`, or `failed`.
+- `verification_status`: `pending`, `verified`, `mismatch`, or `not_found`.
+- `compliance_status`: `pending`, `safe`, `high`, or `critical`.
+- `route`: final route, usually `response` or `escalate`.
+- `final_output`: customer response or internal ticket text.
+- `execution_history`: chronological audit trail of node outcomes.
+
+## Workflow Explanation
+
+1. `extract_information` reads the raw email and extracts `customer_name`, `account_id`, `claimed_amount`, `expected_amount`, and `issue_type`.
+2. `validate_extraction` checks that every required field is present and amount fields are numeric.
+3. `clarify_missing_information` asks for missing details and allows up to 3 retries.
+4. `verify_business_claim` checks the account, customer name, and claimed amount against `mock_db.py`.
+5. `evaluate_compliance` scans the raw email for PII such as credit cards, PAN, Aadhaar, passport numbers, phones, and emails.
+6. `generate_customer_response` runs only when validation passed, verification succeeded, and compliance is safe.
+7. `create_escalation_ticket` handles unsafe, unverifiable, invalid, or incomplete requests.
+
+Escalation tickets are printed as the final output and also saved as `.txt` files under `escalation_tickets/`.
+
+## How To Run
+
+Create and activate a virtual environment:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python main.py --demo happy
 ```
 
-Run tests:
-
-```bash
-.venv/bin/python -m pytest -q
-```
-
-## How It Works
-
-```text
-Email
-  |
-  v
-Extract -> Validate -> Clarify if missing data
-  |
-  v
-Verify billing claim
-  |
-  v
-Compliance / PII check
-  |
-  +--> Safe + verified     -> Customer response
-  |
-  +--> Missing / mismatch /
-       unsafe / invalid    -> Escalation ticket
-```
-
-## Main Features
-
-- LLM-based extraction when `USE_LLM=1`
-- deterministic regex fallback when the LLM fails
-- request id generation for every run
-- clarification loop for missing fields
-- mock billing verification
-- regex-based PII detection
-- saved run logs in `logs/`
-- saved escalation tickets in `escalation_tickets/`
-- sample emails in `sample_emails/`
-
-## Project Structure
-
-```text
-graph/workflow.py          LangGraph workflow and routing
-main.py                    CLI entry point
-state/workflow_state.py    Shared state model
-
-nodes/extract.py           Extracts structured email data
-nodes/validate.py          Validates required fields
-nodes/clarify.py           Handles missing information retries
-nodes/verify.py            Checks mock billing database
-nodes/compliance.py        Checks PII/compliance risk
-nodes/response.py          Generates customer response
-nodes/escalation.py        Creates and saves escalation tickets
-
-mock_db.py                 Mock customer billing records
-pii.py                     Regex PII detection
-prompts.py                 LLM prompt builders
-logger.py                  Run log writer
-config.py                  Environment config
-tests/                     Test suite
-```
-
-## Workflow State
-
-The central state object is `WorkflowState`.
-
-Important fields:
-
-- `request_id`: generated id for the run
-- `raw_email`: original email text
-- `extracted_information`: extracted complaint data
-- `missing_fields`: fields that need clarification
-- `retry_count`: clarification retry count
-- `validation_status`: `pending`, `passed`, `clarification`, or `failed`
-- `verification_status`: `pending`, `verified`, `mismatch`, or `not_found`
-- `compliance_status`: `pending`, `safe`, `high`, or `critical`
-- `route`: final route, usually `response` or `escalate`
-- `final_output`: customer response or escalation ticket
-- `execution_history`: audit trail of each step
-
-## Run Commands
-
-Built-in happy path:
+Run the friendly CLI with a built-in happy-path demo:
 
 ```bash
 python main.py --demo happy
 ```
 
-Built-in scenarios:
+Run all built-in demo scenarios:
 
 ```bash
 python main.py --demo missing_account
@@ -114,7 +93,25 @@ python main.py --demo credit_card
 python main.py --demo wrong_account
 ```
 
-Sample email files:
+Process your own email:
+
+```bash
+python main.py --email "Hello, my name is Alice Johnson. My account ACC1023 was billed $120 but I expected $100."
+```
+
+Process an email from a text file:
+
+```bash
+python main.py --file complaint.txt
+```
+
+Run a sample email file:
+
+```bash
+python main.py --file sample_emails/happy_path.txt
+```
+
+Run all sample email files:
 
 ```bash
 python main.py --file sample_emails/happy_path.txt
@@ -126,42 +123,48 @@ python main.py --file sample_emails/wrong_account.txt
 python main.py --file sample_emails/customer_mismatch.txt
 ```
 
-Inline email:
+Run the compiled LangGraph workflow without interactive clarification:
 
 ```bash
-python main.py --email 'Hello, my name is Alice Johnson. My account ACC1023 was billed $120 but I expected $100.'
+python main.py --demo happy --auto
 ```
 
-Important: use single quotes for inline emails that contain dollar amounts. In double quotes, your shell may remove `$120` before Python receives it.
-
-Other useful options:
+Print the final state as JSON:
 
 ```bash
 python main.py --demo happy --json
+```
+
+Run without writing a log file:
+
+```bash
 python main.py --demo happy --no-log
-python main.py --demo happy --auto
+```
+
+Paste an email interactively:
+
+```bash
 python main.py
 ```
 
-## LLM Setup
+Use the project virtual environment directly:
 
-Create or edit `.env`:
-
-```env
-USE_LLM=1
-LLM_API_KEY=your-api-key
-LLM_BASE_URL=https://integrate.api.nvidia.com/v1
-LLM_MODEL=nvidia/nemotron-3-ultra-550b-a55b
+```bash
+.venv/bin/python main.py --demo happy
+.venv/bin/python main.py --demo happy --auto
 ```
 
-LLM calls happen in two places:
+By default, the project uses deterministic fallbacks so it works without API credentials. To enable LLM calls:
 
-- extraction: `nodes/extract.py`
-- customer response generation: `nodes/response.py`
+```bash
+export USE_LLM=1
+export LLM_API_KEY="your-api-key"
+python main.py --demo happy
+```
 
-Verification, compliance, and escalation are deterministic by design.
+When `USE_LLM=1`, extraction and customer-response generation use the configured LLM. If the LLM package, network, API key, or model response fails, the execution history records the reason and the pipeline falls back to deterministic logic.
 
-The CLI shows whether the LLM was used:
+The CLI prints the active LLM mode and extraction engine for every run:
 
 ```text
 LLM mode: enabled (nvidia/nemotron-3-ultra-550b-a55b)
@@ -169,54 +172,36 @@ Extraction engine: llm
 Extracted amounts: claimed=120.0, expected=100.0
 ```
 
-If the LLM fails, the pipeline records the reason and falls back:
+## Test Cases
 
-```text
-Extraction engine: fallback (APIConnectionError: Connection error.)
-```
+Task 15 is represented by the test suite:
 
-## Outputs
+- Happy Path: valid complaint routes to customer response.
+- Missing Account: validation requests clarification for `account_id`.
+- Missing Amount: validation requests clarification for amount fields.
+- Retry Limit: clarification retries stop at 3 and route to escalation.
+- Credit Card: compliance flags credit card PII as high risk.
+- Wrong Account: business verification fails with `not_found`.
+- Invalid JSON: extraction parse failure becomes validation failure.
+- Complete End-to-End: the whole graph produces a final route and output.
 
-Run logs are saved in:
-
-```text
-logs/
-```
-
-Escalation tickets are saved in:
-
-```text
-escalation_tickets/
-```
-
-Customer responses are printed in the terminal and included in the run log.
-
-## Test Coverage
-
-The test suite covers:
-
-- happy path
-- missing account
-- missing amount
-- retry limit
-- credit card / PII risk
-- wrong account
-- invalid LLM JSON fallback
-- full graph execution
-- request id generation
-- log and escalation ticket output
-
-Run:
+Run tests:
 
 ```bash
-.venv/bin/python -m pytest -q
+pytest -q
+```
+
+If `pytest` is unavailable:
+
+```bash
+python -m pytest -q
 ```
 
 ## Future Improvements
 
-- replace the mock database with a real billing integration
-- add a web UI for support agents
-- add persistent workflow storage
-- add human approval before sending responses
-- redact PII before saving tickets/logs
-- add richer billing cases like refunds, credits, and invoice periods
+- Build a web UI for support agents to review clarification, verification, and escalation details.
+- Add human approval before sending customer responses.
+- Add role-based escalation queues for billing, compliance, and support teams.
+- Extend PII policy checks with redaction before logs or tickets are written.
+- Add persistent workflow storage so interrupted requests can resume later.
+- Add more realistic billing scenarios, including partial credits, refunds, subscriptions, and invoice periods.
