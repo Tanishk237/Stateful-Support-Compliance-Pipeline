@@ -26,7 +26,7 @@ Support & Compliance Pipeline/
 │   └── workflow_state.py        # Central WorkflowState model
 ├── sample_emails/               # Ready-to-run sample complaint emails
 ├── escalation_tickets/          # Saved internal escalation tickets
-├── tests/                       # Task 15 and node-level tests
+├── tests/                       # node-level tests
 ├── logger.py                    # Run log helpers
 ├── main.py                      # User-friendly CLI entry point
 ├── mock_db.py                   # Mock customer billing records
@@ -174,7 +174,7 @@ Extracted amounts: claimed=120.0, expected=100.0
 
 ## Test Cases
 
-Task 15 is represented by the test suite:
+Represented by the test suite:
 
 - Happy Path: valid complaint routes to customer response.
 - Missing Account: validation requests clarification for `account_id`.
