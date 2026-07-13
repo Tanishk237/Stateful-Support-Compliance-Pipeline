@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.DS_Store
+logs/*.log
+escalation_tickets/*.txt
+!escalation_tickets/.gitkeep
