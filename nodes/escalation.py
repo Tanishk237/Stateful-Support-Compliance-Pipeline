@@ -5,6 +5,7 @@ import string
 from datetime import datetime
 from pathlib import Path
 
+from models import EscalationTicket
 from state.workflow_state import WorkflowState
 
 
@@ -15,7 +16,7 @@ ESCALATION_DIR.mkdir(exist_ok=True)
 def create_escalation_ticket(state: WorkflowState) -> WorkflowState:
     """Create an internal escalation ticket for requests that cannot be automatically handled."""
     request_id = state.ensure_request_id()
-    payload = state.extracted_information or {}
+    payload = state.extracted_information
     ticket_id = _generate_ticket_id()
     created_at = datetime.now()
     priority = _determine_priority(state)
@@ -29,8 +30,8 @@ INTERNAL ESCALATION TICKET
 Ticket ID: {ticket_id}
 Request ID: {request_id}
 Date: {created_at.strftime('%Y-%m-%d %H:%M:%S')}
-Customer: {payload.get('customer_name', 'Unknown')}
-Account: {payload.get('account_id', 'Unknown')}
+Customer: {payload.customer_name or 'Unknown'}
+Account: {payload.account_id or 'Unknown'}
 Priority: {priority}
 Department: {department}
 
@@ -45,8 +46,14 @@ Execution History:
 """.strip()
 
     ticket_path = _write_ticket_file(ticket_id, created_at, ticket_text)
-    payload["escalation_ticket_path"] = str(ticket_path)
-    state.extracted_information = payload
+    state.escalation_ticket = EscalationTicket(
+        ticket_id=ticket_id,
+        reason=reason,
+        priority=priority,
+        department=department,
+        summary=summary,
+        ticket_path=str(ticket_path),
+    )
     state.final_output = ticket_text
     state.route = "escalate"
     state.record_event("escalation", "ticket_created", f"Escalation ticket {ticket_id} saved to {ticket_path}")
@@ -92,7 +99,7 @@ def _determine_department(state: WorkflowState) -> str:
 def _build_reason(state: WorkflowState) -> str:
     """Build a concise reason for escalation."""
     if state.compliance_status in ("critical", "high"):
-        pii_found = state.extracted_information.get("compliance_details", {}).get("pii_found", [])
+        pii_found = state.compliance_result.pii_found
         return f"Sensitive information detected in customer email: {', '.join(pii_found)}"
     if state.verification_status == "not_found":
         return "Account not found in the system."
@@ -108,11 +115,11 @@ def _build_reason(state: WorkflowState) -> str:
 
 def _build_summary(state: WorkflowState) -> str:
     """Build a summary of the complaint and current state."""
-    payload = state.extracted_information or {}
+    payload = state.extracted_information
     lines = [
-        f"Issue Type: {payload.get('issue_type', 'unspecified')}",
-        f"Claimed Amount: ${payload.get('claimed_amount', 'N/A')}",
-        f"Expected Amount: ${payload.get('expected_amount', 'N/A')}",
+        f"Issue Type: {payload.issue_type}",
+        f"Claimed Amount: ${payload.claimed_amount if payload.claimed_amount is not None else 'N/A'}",
+        f"Expected Amount: ${payload.expected_amount if payload.expected_amount is not None else 'N/A'}",
         f"Verification Status: {state.verification_status}",
         f"Compliance Status: {state.compliance_status}",
         f"Retry Count: {state.retry_count}/3",

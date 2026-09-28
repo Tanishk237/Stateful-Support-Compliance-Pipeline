@@ -5,8 +5,9 @@ import re
 from typing import Any, Dict, Optional
 
 from config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, USE_LLM
+from models import ExtractedInformation
 from pii import redact_pii
-from prompts import build_extraction_prompt
+from prompts import EXTRACTION_PROMPT_VERSION, build_extraction_prompt
 from state.workflow_state import WorkflowState
 
 try:
@@ -24,48 +25,52 @@ def extract_information(state: WorkflowState) -> WorkflowState:
     prompt = build_extraction_prompt(redacted_email)
 
     try:
-        extracted_payload = _extract_with_llm(prompt)
+        extracted_information = _extract_with_llm(prompt)
         extraction_source = "llm"
+        extraction_error = ""
     except ValueError as exc:
-        extracted_payload = _extract_with_fallback(email_content)
+        extracted_information = _extract_with_fallback(email_content)
         extraction_source = f"fallback (LLM parse error: {exc})"
+        extraction_error = str(exc)
     except Exception as exc:
-        extracted_payload = _extract_with_fallback(email_content)
+        extracted_information = _extract_with_fallback(email_content)
         extraction_source = f"fallback ({type(exc).__name__}: {exc})"
+        extraction_error = f"{type(exc).__name__}: {exc}"
 
-    normalized_payload = _normalize_payload(extracted_payload)
-    for field in ("compliance", "compliance_details"):
-        if field in state.extracted_information:
-            normalized_payload[field] = state.extracted_information[field]
     if extraction_source == "llm":
-        fallback_payload = _normalize_payload(_extract_with_fallback(email_content))
-        filled_fields = _fill_missing_from_fallback(normalized_payload, fallback_payload)
+        fallback_information = _extract_with_fallback(email_content)
+        filled_fields = _fill_missing_from_fallback(extracted_information, fallback_information)
         if filled_fields:
             extraction_source = f"llm + fallback_fill({', '.join(filled_fields)})"
-    normalized_payload["_extraction_source"] = extraction_source
-    state.extracted_information = normalized_payload
+
+    state.extracted_information = extracted_information
+    state.extraction_source = extraction_source
+    state.extraction_prompt_version = EXTRACTION_PROMPT_VERSION
+    state.extraction_error = extraction_error
     state.missing_fields = [
         field
         for field in ["customer_name", "account_id"]
-        if not normalized_payload.get(field)
+        if not getattr(extracted_information, field)
     ]
     state.record_event("extract", "completed", f"Structured complaint information extracted using {extraction_source}")
     return state
 
 
-def _extract_with_llm(prompt: str) -> Dict[str, Any]:
-    """Call the NVIDIA-backed chat completion API and parse the JSON response."""
+def _extract_with_llm(prompt: str) -> ExtractedInformation:
+    """Call an OpenAI-compatible API and validate the JSON response with Pydantic."""
     if not USE_LLM:
         raise RuntimeError("LLM extraction is disabled; using deterministic fallback")
     if OpenAI is None:
         raise RuntimeError("openai package is not installed")
     if not LLM_API_KEY:
         raise RuntimeError("LLM_API_KEY is not configured")
+    if not LLM_MODEL:
+        raise RuntimeError("LLM_MODEL is not configured")
 
-    client = OpenAI(
-        base_url=LLM_BASE_URL,
-        api_key=LLM_API_KEY,
-    )
+    client_options = {"api_key": LLM_API_KEY}
+    if LLM_BASE_URL:
+        client_options["base_url"] = LLM_BASE_URL
+    client = OpenAI(**client_options)
     completion = client.chat.completions.create(
         model=LLM_MODEL,
         messages=[{"role": "user", "content": prompt}],
@@ -78,10 +83,10 @@ def _extract_with_llm(prompt: str) -> Dict[str, Any]:
     if not completion.choices or not completion.choices[0].message:
         raise ValueError("The model response was empty")
     raw_response = (completion.choices[0].message.content or "").strip()
-    return _parse_json_payload(raw_response)
+    return _to_extracted_information(_parse_json_payload(raw_response))
 
 
-def _extract_with_fallback(email_content: str) -> Dict[str, Any]:
+def _extract_with_fallback(email_content: str) -> ExtractedInformation:
     """Provide deterministic extraction when the LLM is unavailable."""
     lower_email = email_content.lower()
     customer_name = ""
@@ -120,13 +125,13 @@ def _extract_with_fallback(email_content: str) -> Dict[str, Any]:
     if "expected" in lower_email and expected_amount is None and len(amounts) >= 1:
         expected_amount = amounts[0]
 
-    return {
-        "customer_name": customer_name,
-        "account_id": account_id,
-        "claimed_amount": claimed_amount,
-        "expected_amount": expected_amount,
-        "issue_type": issue_type,
-    }
+    return ExtractedInformation(
+        customer_name=customer_name,
+        account_id=account_id,
+        claimed_amount=claimed_amount,
+        expected_amount=expected_amount,
+        issue_type=issue_type,
+    )
 
 
 def _parse_json_payload(raw_response: str) -> Dict[str, Any]:
@@ -152,8 +157,8 @@ def _parse_json_payload(raw_response: str) -> Dict[str, Any]:
     return payload
 
 
-def _normalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize keys and convert values to the expected types."""
+def _to_extracted_information(payload: Dict[str, Any]) -> ExtractedInformation:
+    """Normalize provider JSON and validate it against the extraction model."""
     key_aliases = {
         "name": "customer_name",
         "customer": "customer_name",
@@ -190,18 +195,27 @@ def _normalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
                 normalized[normalized_key] = "" if value is None else str(value).strip()
 
     normalized["account_id"] = normalized["account_id"].upper()
+    try:
+        return ExtractedInformation.model_validate(normalized)
+    except Exception as exc:
+        raise ValueError(f"The model response did not match the extraction schema: {exc}") from exc
 
-    return normalized
+
+def _normalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Backward-compatible helper that returns a validated model as a dictionary."""
+    return _to_extracted_information(payload).model_dump()
 
 
-def _fill_missing_from_fallback(payload: Dict[str, Any], fallback_payload: Dict[str, Any]) -> list[str]:
+def _fill_missing_from_fallback(
+    payload: ExtractedInformation, fallback_payload: ExtractedInformation
+) -> list[str]:
     """Fill fields the LLM missed when deterministic extraction found them."""
     filled_fields: list[str] = []
     for field in ["customer_name", "account_id", "claimed_amount", "expected_amount", "issue_type"]:
-        value = payload.get(field)
-        fallback_value = fallback_payload.get(field)
+        value = getattr(payload, field)
+        fallback_value = getattr(fallback_payload, field)
         if value in (None, "") and fallback_value not in (None, ""):
-            payload[field] = fallback_value
+            setattr(payload, field, fallback_value)
             filled_fields.append(field)
     return filled_fields
 

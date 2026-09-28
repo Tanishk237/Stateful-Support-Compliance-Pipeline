@@ -3,10 +3,14 @@
 from typing import Any, Dict, Iterable, Optional
 
 
+EXTRACTION_PROMPT_VERSION = "billing-extraction-v1"
+
+
 def build_extraction_prompt(email_content: str) -> str:
     """Create the extraction prompt for a complaint email."""
     return f"""
 You are extracting structured billing complaint information from a customer email.
+Prompt version: {EXTRACTION_PROMPT_VERSION}
 
 Return ONLY valid JSON. Do not include markdown, commentary, reasoning, or code fences.
 The JSON object must use exactly these keys:

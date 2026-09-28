@@ -1,6 +1,6 @@
 """Validation node for extracted complaint data."""
 
-from typing import Any, Dict, List
+from typing import List
 
 from state.workflow_state import WorkflowState
 
@@ -10,17 +10,11 @@ REQUIRED_FIELDS = ["customer_name", "account_id", "claimed_amount", "expected_am
 
 def validate_extraction(state: WorkflowState) -> WorkflowState:
     """Validate extracted complaint information and update the workflow state."""
-    payload = state.extracted_information or {}
+    payload = state.extracted_information
     missing_fields: List[str] = []
 
-    if payload.get("__parse_error__") is True:
-        state.validation_status = "failed"
-        state.missing_fields = REQUIRED_FIELDS.copy()
-        state.record_event("validate", "failed", "Extraction output could not be parsed as JSON")
-        return state
-
     for field in REQUIRED_FIELDS:
-        value = payload.get(field)
+        value = getattr(payload, field)
         if value in (None, ""):
             missing_fields.append(field)
             continue
@@ -34,6 +28,7 @@ def validate_extraction(state: WorkflowState) -> WorkflowState:
     else:
         state.validation_status = "passed"
         state.missing_fields = []
+    state.resume_from_clarification = False
 
     state.record_event("validate", state.validation_status, "Validation completed")
     return state

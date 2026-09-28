@@ -9,6 +9,8 @@ load_dotenv()
 
 
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://integrate.api.nvidia.com/v1")
-LLM_MODEL = os.getenv("LLM_MODEL", "nvidia/nemotron-3-ultra-550b-a55b")
+# The OpenAI client also supports compatible providers through a custom base URL.
+# Leave this blank to use the OpenAI default endpoint.
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "").strip()
+LLM_MODEL = os.getenv("LLM_MODEL", "").strip()
 USE_LLM = os.getenv("USE_LLM", "").lower() in {"1", "true", "yes"}

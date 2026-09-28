@@ -1,6 +1,9 @@
 """Response generation node for compliant requests."""
 
+from typing import Optional
+
 from config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, USE_LLM
+from models import CustomerResponse, ExtractedInformation
 from prompts import build_response_prompt
 from state.workflow_state import WorkflowState
 
@@ -12,7 +15,7 @@ except ImportError:  # pragma: no cover - depends on environment
 def generate_customer_response(state: WorkflowState) -> WorkflowState:
     """Generate a professional customer response only when the request is safe and verified."""
     request_id = state.ensure_request_id()
-    payload = state.extracted_information or {}
+    payload = state.extracted_information
     is_safe = state.compliance_status == "safe"
     is_verified = state.verification_status == "verified"
     is_validated = state.validation_status == "passed"
@@ -23,14 +26,15 @@ def generate_customer_response(state: WorkflowState) -> WorkflowState:
         state.record_event("response", "skipped", "Request is not safe, validated, or verified")
         return state
 
-    customer_name = str(payload.get("customer_name", "")).strip()
-    issue_summary = _build_issue_summary(payload)
+    customer_name = payload.customer_name.strip()
+    issue_summary = _build_issue_summary(payload, state.business_verification.difference)
     prompt = build_response_prompt(
         customer_name,
         issue_summary,
         request_id=request_id,
         details={
-            **payload,
+            **payload.model_dump(),
+            **state.business_verification.model_dump(),
             "verification_status": state.verification_status,
             "compliance_status": state.compliance_status,
         },
@@ -44,24 +48,30 @@ def generate_customer_response(state: WorkflowState) -> WorkflowState:
         response_source = f"fallback ({type(exc).__name__}: {exc})"
 
     state.final_output = response_text
+    state.customer_response = CustomerResponse(
+        subject=f"Billing complaint update — {request_id}",
+        body=response_text,
+    )
     state.route = "response"
     state.record_event("response", "generated", f"Customer response email generated using {response_source}")
     return state
 
 
 def _generate_with_llm(prompt: str) -> str:
-    """Call the NVIDIA-backed chat completion API to generate a response."""
+    """Call an OpenAI-compatible API to generate a response."""
     if not USE_LLM:
         raise RuntimeError("LLM response generation is disabled; using deterministic fallback")
     if OpenAI is None:
         raise RuntimeError("openai package is not installed")
     if not LLM_API_KEY:
         raise RuntimeError("LLM_API_KEY is not configured")
+    if not LLM_MODEL:
+        raise RuntimeError("LLM_MODEL is not configured")
 
-    client = OpenAI(
-        base_url=LLM_BASE_URL,
-        api_key=LLM_API_KEY,
-    )
+    client_options = {"api_key": LLM_API_KEY}
+    if LLM_BASE_URL:
+        client_options["base_url"] = LLM_BASE_URL
+    client = OpenAI(**client_options)
     completion = client.chat.completions.create(
         model=LLM_MODEL,
         messages=[{"role": "user", "content": prompt}],
@@ -77,12 +87,11 @@ def _generate_with_llm(prompt: str) -> str:
     raise RuntimeError("The model response was empty")
 
 
-def _build_issue_summary(payload: dict) -> str:
-    issue_type = str(payload.get("issue_type", "billing")).replace("_", " ")
-    account_id = payload.get("account_id", "your account")
-    claimed_amount = payload.get("claimed_amount")
-    expected_amount = payload.get("expected_amount")
-    difference = payload.get("difference")
+def _build_issue_summary(payload: ExtractedInformation, difference: Optional[float] = None) -> str:
+    issue_type = payload.issue_type.replace("_", " ")
+    account_id = payload.account_id or "your account"
+    claimed_amount = payload.claimed_amount
+    expected_amount = payload.expected_amount
 
     amount_part = ""
     if claimed_amount is not None and expected_amount is not None:
@@ -93,11 +102,13 @@ def _build_issue_summary(payload: dict) -> str:
     return f"Your {issue_type} for account {account_id} has been reviewed.{amount_part}"
 
 
-def _generate_fallback_response(request_id: str, customer_name: str, payload: dict, issue_summary: str) -> str:
+def _generate_fallback_response(
+    request_id: str, customer_name: str, payload: ExtractedInformation, issue_summary: str
+) -> str:
     """Provide a deterministic professional response when the LLM is unavailable."""
     name_part = f"Dear {customer_name}," if customer_name else "Dear Valued Customer,"
-    account_id = payload.get("account_id", "your account")
-    issue_type = str(payload.get("issue_type", "billing issue")).replace("_", " ")
+    account_id = payload.account_id or "your account"
+    issue_type = payload.issue_type.replace("_", " ")
     return f"""{name_part}
 
 Thank you for bringing this matter to our attention. Your request ID is {request_id}.

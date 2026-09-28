@@ -2,7 +2,7 @@
 
 from langgraph.graph import END, StateGraph
 
-from nodes.clarify import clarify_missing_information
+from nodes.clarify import apply_clarification_answers, clarify_missing_information
 from nodes.compliance import evaluate_compliance
 from nodes.escalation import create_escalation_ticket
 from nodes.extract import extract_information
@@ -24,8 +24,15 @@ def build_workflow_graph():
     workflow.add_node("response", generate_customer_response)
     workflow.add_node("escalate", create_escalation_ticket)
 
-    # Compliance is deliberately first so risky email content never reaches the LLM.
-    workflow.set_entry_point("compliance")
+    # A normal request starts with compliance. A resumed request already passed
+    # that check, so it continues from validation with the merged customer answer.
+    workflow.set_conditional_entry_point(
+        _route_at_entry,
+        {
+            "compliance": "compliance",
+            "validate": "validate",
+        },
+    )
     workflow.add_conditional_edges(
         "compliance",
         _route_after_compliance_precheck,
@@ -46,13 +53,11 @@ def build_workflow_graph():
         },
     )
 
+    # Clarification pauses instead of repeatedly re-extracting the same email.
     workflow.add_conditional_edges(
         "clarify",
         _route_after_clarify,
-        {
-            "extract": "extract",
-            "escalate": "escalate",
-        },
+        {"pause": END, "escalate": "escalate"},
     )
 
     workflow.add_conditional_edges(
@@ -79,11 +84,22 @@ def _route_after_validation(state: WorkflowState) -> str:
     return "verify"
 
 
+def resume_workflow(state: WorkflowState, answers: dict) -> WorkflowState:
+    """Merge a clarification answer and continue the compiled workflow."""
+    apply_clarification_answers(state, answers)
+    workflow = build_workflow_graph()
+    result = workflow.invoke(state)
+    return result if isinstance(result, WorkflowState) else WorkflowState(**result)
+
+
+def _route_at_entry(state: WorkflowState) -> str:
+    """Skip extraction when a validated clarification answer is being resumed."""
+    return "validate" if state.resume_from_clarification else "compliance"
+
+
 def _route_after_clarify(state: WorkflowState) -> str:
-    """Decide whether to loop back to extraction or escalate."""
-    if state.route == "retry":
-        return "extract"
-    return "escalate"
+    """Pause for an answer unless the clarification limit was already reached."""
+    return "escalate" if state.route == "escalate" else "pause"
 
 
 def _route_after_compliance_precheck(state: WorkflowState) -> str:

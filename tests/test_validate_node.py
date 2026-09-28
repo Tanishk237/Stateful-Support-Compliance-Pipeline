@@ -6,19 +6,17 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from nodes.validate import validate_extraction
+from models import ExtractedInformation
 from state.workflow_state import WorkflowState
 
 
 def test_validate_extraction_passes_for_valid_payload():
     state = WorkflowState(
         raw_email="Billing issue",
-        extracted_information={
-            "customer_name": "Alice",
-            "account_id": "ACC1023",
-            "claimed_amount": 120.0,
-            "expected_amount": 100.0,
-            "issue_type": "billing_error",
-        },
+        extracted_information=ExtractedInformation(
+            customer_name="Alice", account_id="ACC1023", claimed_amount=120.0,
+            expected_amount=100.0, issue_type="billing_error"
+        ),
     )
 
     updated_state = validate_extraction(state)
@@ -30,13 +28,10 @@ def test_validate_extraction_passes_for_valid_payload():
 def test_validate_extraction_requests_clarification_for_missing_values():
     state = WorkflowState(
         raw_email="Billing issue",
-        extracted_information={
-            "customer_name": "",
-            "account_id": "ACC1023",
-            "claimed_amount": 120.0,
-            "expected_amount": 100.0,
-            "issue_type": "billing_error",
-        },
+        extracted_information=ExtractedInformation(
+            account_id="ACC1023", claimed_amount=120.0, expected_amount=100.0,
+            issue_type="billing_error"
+        ),
     )
 
     updated_state = validate_extraction(state)
@@ -45,16 +40,13 @@ def test_validate_extraction_requests_clarification_for_missing_values():
     assert "customer_name" in updated_state.missing_fields
 
 
-def test_validate_extraction_handles_malformed_payload_shape():
+def test_validate_extraction_handles_missing_numeric_value():
     state = WorkflowState(
         raw_email="Billing issue",
-        extracted_information={
-            "customer_name": "Alice",
-            "account_id": "ACC1023",
-            "claimed_amount": "not-a-number",
-            "expected_amount": 100.0,
-            "issue_type": "billing_error",
-        },
+        extracted_information=ExtractedInformation(
+            customer_name="Alice", account_id="ACC1023", expected_amount=100.0,
+            issue_type="billing_error"
+        ),
     )
 
     updated_state = validate_extraction(state)

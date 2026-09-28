@@ -12,6 +12,7 @@ from nodes.compliance import evaluate_compliance
 from nodes.extract import extract_information
 from nodes.validate import validate_extraction
 from nodes.verify import verify_business_claim
+from models import ExtractedInformation
 from state.workflow_state import WorkflowState
 
 
@@ -74,22 +75,20 @@ def test_credit_card_is_flagged_as_high_risk():
     updated_state = evaluate_compliance(state)
 
     assert updated_state.compliance_status == "high"
-    assert "credit_card" in updated_state.extracted_information["compliance_details"]["pii_found"]
+    assert "credit_card" in updated_state.compliance_result.pii_found
 
 
 def test_wrong_account_fails_business_verification():
     state = WorkflowState(
-        extracted_information={
-            "account_id": "ACC9999",
-            "customer_name": "Ghost User",
-            "claimed_amount": 50.0,
-        }
+        extracted_information=ExtractedInformation(
+            account_id="ACC9999", customer_name="Ghost User", claimed_amount=50.0
+        )
     )
 
     updated_state = verify_business_claim(state)
 
     assert updated_state.verification_status == "not_found"
-    assert updated_state.extracted_information["account_found"] is False
+    assert updated_state.business_verification.account_found is False
 
 
 def test_invalid_json_falls_back_to_deterministic_extraction():
@@ -103,9 +102,9 @@ def test_invalid_json_falls_back_to_deterministic_extraction():
     validated_state = validate_extraction(extracted_state)
 
     assert validated_state.validation_status == "passed"
-    assert validated_state.extracted_information["claimed_amount"] == 120.0
-    assert validated_state.extracted_information["expected_amount"] == 100.0
-    assert "LLM parse error" in validated_state.extracted_information["_extraction_source"]
+    assert validated_state.extracted_information.claimed_amount == 120.0
+    assert validated_state.extracted_information.expected_amount == 100.0
+    assert "LLM parse error" in validated_state.extraction_source
 
 
 def test_complete_end_to_end_workflow_for_valid_request():

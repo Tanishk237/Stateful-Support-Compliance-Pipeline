@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 
 from config import LLM_MODEL, USE_LLM
 from logger import write_run_log
-from nodes.clarify import clarify_missing_information
+from nodes.clarify import apply_clarification_answers, clarify_missing_information
 from nodes.compliance import evaluate_compliance
 from nodes.escalation import create_escalation_ticket
 from nodes.extract import extract_information
@@ -46,7 +46,10 @@ def main() -> None:
     print("\nSupport & Compliance Pipeline")
     print("===================================")
     print(f"Request ID: {state.request_id}")
-    print(f"LLM mode: {'enabled' if USE_LLM else 'disabled'}" + (f" ({LLM_MODEL})" if USE_LLM else ""))
+    llm_label = "enabled" if USE_LLM else "disabled"
+    if USE_LLM and LLM_MODEL:
+        llm_label += f" ({LLM_MODEL})"
+    print(f"LLM mode: {llm_label}")
     print("Processing your billing complaint...\n")
 
     if args.auto:
@@ -92,9 +95,11 @@ def run_interactive_workflow(state: WorkflowState) -> WorkflowState:
             _step("Retry limit reached; creating escalation ticket")
             return create_escalation_ticket(state)
 
-        if not _collect_missing_fields(state):
+        answers = _collect_missing_fields(state)
+        if answers is None:
             _step("Clarification input unavailable; creating escalation ticket")
             return create_escalation_ticket(state)
+        state = apply_clarification_answers(state, answers)
 
     _step("Verifying account and billing details")
     state = verify_business_claim(state)
@@ -150,29 +155,19 @@ def _load_email(email: Optional[str], file_path: Optional[str], demo: Optional[s
     return "\n".join(lines).strip()
 
 
-def _collect_missing_fields(state: WorkflowState) -> bool:
+def _collect_missing_fields(state: WorkflowState) -> Optional[Dict[str, Any]]:
     print("\nI need a little more information before this can continue.")
     print(f"Missing fields: {', '.join(state.missing_fields)}")
 
+    answers: Dict[str, Any] = {}
     for field in list(state.missing_fields):
         try:
             value = input(f"Enter {field.replace('_', ' ')}: ").strip()
         except EOFError:
             state.record_event("clarify", "input_unavailable", "No interactive input was available")
-            return False
-        state.extracted_information[field] = _coerce_field_value(field, value)
-    return True
-
-
-def _coerce_field_value(field: str, value: str) -> Any:
-    if field in {"claimed_amount", "expected_amount"}:
-        try:
-            return float(value)
-        except ValueError:
             return None
-    if field == "account_id":
-        return value.upper()
-    return value
+        answers[field] = value
+    return answers
 
 
 def _warn_about_shell_amount_expansion(email: str, from_inline_arg: bool) -> None:
@@ -197,8 +192,8 @@ def _print_human_summary(state: WorkflowState) -> None:
     print(f"Verification: {state.verification_status}")
     print(f"Compliance: {state.compliance_status}")
     print(f"Retries: {state.retry_count}/3")
-    if state.extracted_information:
-        print(f"Extraction: {state.extracted_information.get('_extraction_source', 'unknown')}")
+    if state.extraction_source != "pending":
+        print(f"Extraction: {state.extraction_source}")
 
     print("\nFinal Output")
     print("------------")
@@ -218,9 +213,9 @@ def _state_to_json(state: WorkflowState) -> str:
 
 
 def _print_extraction_indicator(state: WorkflowState) -> None:
-    source = state.extracted_information.get("_extraction_source", "unknown")
-    claimed_amount = state.extracted_information.get("claimed_amount")
-    expected_amount = state.extracted_information.get("expected_amount")
+    source = state.extraction_source
+    claimed_amount = state.extracted_information.claimed_amount
+    expected_amount = state.extracted_information.expected_amount
     print(f"  Extraction engine: {source}")
     print(f"  Extracted amounts: claimed={claimed_amount}, expected={expected_amount}")
 

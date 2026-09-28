@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from graph.workflow import build_workflow_graph
+from graph.workflow import build_workflow_graph, resume_workflow
 from nodes import escalation
 from state.workflow_state import WorkflowState
 
@@ -24,7 +24,7 @@ def test_workflow_graph_routes_valid_request_to_response():
     assert final_state.final_output != ""
 
 
-def test_workflow_graph_routes_invalid_request_to_escalation():
+def test_workflow_graph_pauses_invalid_request_for_clarification():
     workflow = build_workflow_graph()
     state = WorkflowState(
         raw_email="Hello, I need help with my account because I believe there is a billing issue.",
@@ -33,8 +33,24 @@ def test_workflow_graph_routes_invalid_request_to_escalation():
     result = workflow.invoke(state)
     final_state = result if isinstance(result, WorkflowState) else WorkflowState(**result)
 
-    assert final_state.route == "escalate"
-    assert final_state.final_output != ""
+    assert final_state.route == "clarification"
+    assert final_state.clarification_question
+
+
+def test_workflow_graph_resumes_after_clarification():
+    workflow = build_workflow_graph()
+    state = WorkflowState(
+        raw_email=(
+            "Hello, my name is Alice Johnson. I was billed $120 but expected $100 for a billing issue."
+        )
+    )
+
+    first_result = workflow.invoke(state)
+    paused_state = first_result if isinstance(first_result, WorkflowState) else WorkflowState(**first_result)
+    final_state = resume_workflow(paused_state, {"account_id": "ACC1023"})
+
+    assert final_state.route == "response"
+    assert final_state.validation_status == "passed"
 
 
 def test_workflow_graph_escalates_pii_without_calling_extraction(tmp_path, monkeypatch):

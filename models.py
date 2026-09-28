@@ -1,18 +1,25 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel, Field
-
-from state.workflow_state import WorkflowState
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExtractedInformation(BaseModel):
     """Structured information extracted from a complaint email."""
 
+    model_config = ConfigDict(extra="forbid")
+
     customer_name: str = ""
     account_id: str = ""
     claimed_amount: Optional[float] = None
     expected_amount: Optional[float] = None
-    issue_type: str = ""
+    issue_type: Literal[
+        "billing_error",
+        "duplicate_charge",
+        "overcharge",
+        "refund_request",
+        "plan_change",
+        "other",
+    ] = "other"
 
 
 class CustomerResponse(BaseModel):
@@ -30,6 +37,7 @@ class EscalationTicket(BaseModel):
     priority: str = "medium"
     department: str = "billing"
     summary: str = ""
+    ticket_path: str = ""
 
 
 class BusinessVerification(BaseModel):
@@ -54,5 +62,4 @@ __all__ = [
     "CustomerResponse",
     "EscalationTicket",
     "ExtractedInformation",
-    "WorkflowState",
 ]

@@ -16,7 +16,8 @@ def test_workflow_state_has_sensible_defaults_and_mutable_lists():
     assert state.redacted_email == ""
     assert state.retry_count == 0
     assert state.missing_fields == []
-    assert state.extracted_information == {}
+    assert state.extracted_information.customer_name == ""
+    assert state.business_verification.account_found is False
     assert state.validation_status == "pending"
     assert state.verification_status == "pending"
     assert state.compliance_status == "pending"
@@ -26,12 +27,12 @@ def test_workflow_state_has_sensible_defaults_and_mutable_lists():
 
     state.retry_count += 1
     state.missing_fields.append("customer_name")
-    state.extracted_information["customer_name"] = "Alice"
+    state.extracted_information.customer_name = "Alice"
     state.execution_history.append({"step": "extract", "status": "done"})
 
     assert state.retry_count == 1
     assert state.missing_fields == ["customer_name"]
-    assert state.extracted_information["customer_name"] == "Alice"
+    assert state.extracted_information.customer_name == "Alice"
     assert state.execution_history[-1]["step"] == "extract"
 
 

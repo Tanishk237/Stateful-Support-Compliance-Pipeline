@@ -7,6 +7,7 @@ if str(ROOT) not in sys.path:
 
 from nodes.extract import extract_information
 from nodes.extract import _normalize_payload
+from models import ExtractedInformation
 from state.workflow_state import WorkflowState
 
 
@@ -15,11 +16,11 @@ def test_extract_information_from_normal_billing_email():
 
     updated_state = extract_information(state)
 
-    assert updated_state.extracted_information["customer_name"] == "Alice Johnson"
-    assert updated_state.extracted_information["account_id"] == "ACC1023"
-    assert updated_state.extracted_information["claimed_amount"] == 120.0
-    assert updated_state.extracted_information["expected_amount"] == 100.0
-    assert updated_state.extracted_information["issue_type"] == "billing_error"
+    assert updated_state.extracted_information.customer_name == "Alice Johnson"
+    assert updated_state.extracted_information.account_id == "ACC1023"
+    assert updated_state.extracted_information.claimed_amount == 120.0
+    assert updated_state.extracted_information.expected_amount == 100.0
+    assert updated_state.extracted_information.issue_type == "billing_error"
 
 
 def test_extract_information_when_account_is_missing():
@@ -27,10 +28,10 @@ def test_extract_information_when_account_is_missing():
 
     updated_state = extract_information(state)
 
-    assert updated_state.extracted_information["customer_name"] == "Bob"
-    assert updated_state.extracted_information["account_id"] == ""
-    assert updated_state.extracted_information["claimed_amount"] == 80.0
-    assert updated_state.extracted_information["expected_amount"] == 60.0
+    assert updated_state.extracted_information.customer_name == "Bob"
+    assert updated_state.extracted_information.account_id == ""
+    assert updated_state.extracted_information.claimed_amount == 80.0
+    assert updated_state.extracted_information.expected_amount == 60.0
 
 
 def test_extract_information_when_amount_is_missing():
@@ -38,10 +39,10 @@ def test_extract_information_when_amount_is_missing():
 
     updated_state = extract_information(state)
 
-    assert updated_state.extracted_information["customer_name"] == ""
-    assert updated_state.extracted_information["account_id"] == ""
-    assert updated_state.extracted_information["claimed_amount"] is None
-    assert updated_state.extracted_information["expected_amount"] is None
+    assert updated_state.extracted_information.customer_name == ""
+    assert updated_state.extracted_information.account_id == ""
+    assert updated_state.extracted_information.claimed_amount is None
+    assert updated_state.extracted_information.expected_amount is None
 
 
 def test_extract_information_from_random_email():
@@ -49,8 +50,8 @@ def test_extract_information_from_random_email():
 
     updated_state = extract_information(state)
 
-    assert updated_state.extracted_information["issue_type"] == "other"
-    assert updated_state.extracted_information["customer_name"] == ""
+    assert updated_state.extracted_information.issue_type == "other"
+    assert updated_state.extracted_information.customer_name == ""
 
 
 def test_normalize_payload_accepts_llm_amount_strings_and_aliases():
@@ -73,13 +74,13 @@ def test_normalize_payload_accepts_llm_amount_strings_and_aliases():
 
 def test_extract_fills_missing_llm_amounts_from_fallback(monkeypatch):
     def fake_llm(_prompt):
-        return {
-            "customer_name": "Tanishk",
-            "account_id": "ACC1023",
-            "claimed_amount": None,
-            "expected_amount": None,
-            "issue_type": "billing_error",
-        }
+        return ExtractedInformation(
+            customer_name="Tanishk",
+            account_id="ACC1023",
+            claimed_amount=None,
+            expected_amount=None,
+            issue_type="billing_error",
+        )
 
     monkeypatch.setattr("nodes.extract._extract_with_llm", fake_llm)
     state = WorkflowState(
@@ -88,9 +89,9 @@ def test_extract_fills_missing_llm_amounts_from_fallback(monkeypatch):
 
     updated_state = extract_information(state)
 
-    assert updated_state.extracted_information["claimed_amount"] == 120.0
-    assert updated_state.extracted_information["expected_amount"] == 400.0
-    assert "fallback_fill" in updated_state.extracted_information["_extraction_source"]
+    assert updated_state.extracted_information.claimed_amount == 120.0
+    assert updated_state.extracted_information.expected_amount == 400.0
+    assert "fallback_fill" in updated_state.extraction_source
 
 
 def test_extract_redacts_pii_before_building_an_llm_prompt(monkeypatch):
@@ -99,13 +100,13 @@ def test_extract_redacts_pii_before_building_an_llm_prompt(monkeypatch):
     def fake_llm(prompt):
         nonlocal captured_prompt
         captured_prompt = prompt
-        return {
-            "customer_name": "Alice Johnson",
-            "account_id": "ACC1023",
-            "claimed_amount": 120,
-            "expected_amount": 100,
-            "issue_type": "billing_error",
-        }
+        return ExtractedInformation(
+            customer_name="Alice Johnson",
+            account_id="ACC1023",
+            claimed_amount=120,
+            expected_amount=100,
+            issue_type="billing_error",
+        )
 
     monkeypatch.setattr("nodes.extract._extract_with_llm", fake_llm)
     state = WorkflowState(

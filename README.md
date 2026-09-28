@@ -59,7 +59,10 @@ Important fields:
 - `conversation_history`: clarification messages generated during retries.
 - `retry_count`: number of clarification attempts.
 - `missing_fields`: required fields that are not available yet.
-- `extracted_information`: structured data and node-added metadata.
+- `extracted_information`: validated `ExtractedInformation` Pydantic model.
+- `business_verification`, `compliance_result`, `customer_response`, `escalation_ticket`: typed Pydantic results produced by their matching nodes.
+- `extraction_source`, `extraction_prompt_version`, `extraction_error`: small audit fields that show how extraction ran or why it fell back.
+- `clarification_question`: the question returned when customer details are required.
 - `validation_status`: `pending`, `passed`, `clarification`, or `failed`.
 - `verification_status`: `pending`, `verified`, `mismatch`, or `not_found`.
 - `compliance_status`: `pending`, `safe`, `high`, or `critical`.
@@ -72,7 +75,7 @@ Important fields:
 1. `evaluate_compliance` scans the raw email for PII, creates a redacted copy, and blocks risky emails before they can reach an external LLM.
 2. `extract_information` extracts `customer_name`, `account_id`, `claimed_amount`, `expected_amount`, and `issue_type` from the PII-safe email.
 3. `validate_extraction` checks that every required field is present and amount fields are numeric.
-4. `clarify_missing_information` asks for missing details and allows up to 3 retries.
+4. `clarify_missing_information` returns a missing-field question and pauses. The caller supplies the next answer, which is merged into the typed extraction result before the workflow resumes from validation. Up to 3 attempts are allowed.
 5. `verify_business_claim` checks the account, customer name, and claimed amount against `mock_db.py`.
 6. `generate_customer_response` runs only when validation passed, verification succeeded, and compliance is safe.
 7. `create_escalation_ticket` handles unsafe, unverifiable, invalid, or incomplete requests.
@@ -165,15 +168,18 @@ Use the project virtual environment directly:
 .venv/bin/python main.py --demo happy --auto
 ```
 
-By default, the project uses deterministic fallbacks so it works without API credentials. To enable LLM calls:
+By default, the project uses deterministic fallbacks so it works without API credentials. To enable LLM calls with OpenAI or any OpenAI-compatible provider:
 
 ```bash
 export USE_LLM=1
 export LLM_API_KEY="your-api-key"
+export LLM_MODEL="your-model-name"
+# Optional: only set this for a compatible provider with a custom endpoint.
+export LLM_BASE_URL="https://provider.example/v1"
 python main.py --demo happy
 ```
 
-When `USE_LLM=1`, extraction and customer-response generation use the configured LLM. Before extraction, the pipeline detects and redacts supported PII categories; emails with detected PII are escalated and never sent to the LLM. If the LLM package, network, API key, or model response fails, the execution history records the reason and the pipeline falls back to deterministic logic.
+When `USE_LLM=1`, extraction and customer-response generation use the configured LLM. Extraction asks for JSON only, validates the response with the `ExtractedInformation` Pydantic model, and records the prompt version. Before extraction, the pipeline detects and redacts supported PII categories; emails with detected PII are escalated and never sent to the LLM. If configuration, network access, or schema validation fails, the failure reason is recorded and the pipeline uses deterministic extraction.
 
 The CLI prints the active LLM mode and extraction engine for every run:
 
@@ -191,6 +197,7 @@ Represented by the test suite:
 - Missing Account: validation requests clarification for `account_id`.
 - Missing Amount: validation requests clarification for amount fields.
 - Retry Limit: clarification retries stop at 3 and route to escalation.
+- Resumable Clarification: a paused request accepts missing fields and continues from validation without re-running extraction.
 - Credit Card: compliance flags credit card PII as high risk.
 - Wrong Account: business verification fails with `not_found`.
 - Invalid JSON: extraction falls back to deterministic parsing.

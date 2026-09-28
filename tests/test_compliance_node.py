@@ -15,7 +15,7 @@ def test_compliance_for_normal_email():
     updated_state = evaluate_compliance(state)
 
     assert updated_state.compliance_status == "safe"
-    assert updated_state.extracted_information["compliance"] == "safe"
+    assert updated_state.compliance_result.risk_level == "safe"
 
 
 def test_compliance_for_credit_card():
@@ -24,7 +24,7 @@ def test_compliance_for_credit_card():
     updated_state = evaluate_compliance(state)
 
     assert updated_state.compliance_status == "high"
-    assert "credit_card" in updated_state.extracted_information["compliance_details"]["pii_found"]
+    assert "credit_card" in updated_state.compliance_result.pii_found
     assert "4111 1111 1111 1111" not in updated_state.redacted_email
     assert "[REDACTED_CREDIT_CARD]" in updated_state.redacted_email
 
@@ -35,7 +35,7 @@ def test_compliance_for_pan():
     updated_state = evaluate_compliance(state)
 
     assert updated_state.compliance_status == "high"
-    assert "pan" in updated_state.extracted_information["compliance_details"]["pii_found"]
+    assert "pan" in updated_state.compliance_result.pii_found
 
 
 def test_compliance_for_phone():
@@ -44,4 +44,4 @@ def test_compliance_for_phone():
     updated_state = evaluate_compliance(state)
 
     assert updated_state.compliance_status == "high"
-    assert "phone" in updated_state.extracted_information["compliance_details"]["pii_found"]
+    assert "phone" in updated_state.compliance_result.pii_found

@@ -6,6 +6,14 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from models import (
+    BusinessVerification,
+    ComplianceResult,
+    CustomerResponse,
+    EscalationTicket,
+    ExtractedInformation,
+)
+
 
 class WorkflowState(BaseModel):
     """Mutable state container shared by every node in the workflow."""
@@ -16,7 +24,18 @@ class WorkflowState(BaseModel):
     conversation_history: List[str] = Field(default_factory=list)
     retry_count: int = 0
     missing_fields: List[str] = Field(default_factory=list)
-    extracted_information: Dict[str, Any] = Field(default_factory=dict)
+    extracted_information: ExtractedInformation = Field(default_factory=ExtractedInformation)
+    business_verification: BusinessVerification = Field(default_factory=BusinessVerification)
+    compliance_result: ComplianceResult = Field(
+        default_factory=lambda: ComplianceResult(is_safe=False, risk_level="pending")
+    )
+    customer_response: CustomerResponse = Field(default_factory=CustomerResponse)
+    escalation_ticket: EscalationTicket = Field(default_factory=EscalationTicket)
+    extraction_source: str = "pending"
+    extraction_prompt_version: str = ""
+    extraction_error: str = ""
+    clarification_question: str = ""
+    resume_from_clarification: bool = False
     validation_status: str = "pending"
     verification_status: str = "pending"
     compliance_status: str = "pending"
