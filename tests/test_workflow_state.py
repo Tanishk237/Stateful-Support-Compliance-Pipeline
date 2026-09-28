@@ -13,6 +13,7 @@ def test_workflow_state_has_sensible_defaults_and_mutable_lists():
 
     assert state.request_id == ""
     assert state.raw_email == "I was billed twice"
+    assert state.redacted_email == ""
     assert state.retry_count == 0
     assert state.missing_fields == []
     assert state.extracted_information == {}

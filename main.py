@@ -67,6 +67,12 @@ def main() -> None:
 
 def run_interactive_workflow(state: WorkflowState) -> WorkflowState:
     """Run the workflow with CLI clarification when extracted fields are missing."""
+    _step("Checking compliance and redacting sensitive information")
+    state = evaluate_compliance(state)
+    if state.compliance_status != "safe":
+        _step("Sensitive information detected; creating internal escalation ticket")
+        return create_escalation_ticket(state)
+
     _step("Extracting structured information")
     state = extract_information(state)
     _print_extraction_indicator(state)
@@ -92,9 +98,6 @@ def run_interactive_workflow(state: WorkflowState) -> WorkflowState:
 
     _step("Verifying account and billing details")
     state = verify_business_claim(state)
-
-    _step("Checking compliance and PII risk")
-    state = evaluate_compliance(state)
 
     if (
         state.compliance_status == "safe"

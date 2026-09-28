@@ -1,7 +1,5 @@
 """Workflow graph definition for the support compliance pipeline."""
 
-from typing import Any, Dict, TypedDict
-
 from langgraph.graph import END, StateGraph
 
 from nodes.clarify import clarify_missing_information
@@ -12,10 +10,6 @@ from nodes.response import generate_customer_response
 from nodes.validate import validate_extraction
 from nodes.verify import verify_business_claim
 from state.workflow_state import WorkflowState
-
-
-class WorkflowStateDict(TypedDict, total=False):
-    state: WorkflowState
 
 
 def build_workflow_graph():
@@ -30,7 +24,16 @@ def build_workflow_graph():
     workflow.add_node("response", generate_customer_response)
     workflow.add_node("escalate", create_escalation_ticket)
 
-    workflow.set_entry_point("extract")
+    # Compliance is deliberately first so risky email content never reaches the LLM.
+    workflow.set_entry_point("compliance")
+    workflow.add_conditional_edges(
+        "compliance",
+        _route_after_compliance_precheck,
+        {
+            "extract": "extract",
+            "escalate": "escalate",
+        },
+    )
     workflow.add_edge("extract", "validate")
 
     workflow.add_conditional_edges(
@@ -52,10 +55,9 @@ def build_workflow_graph():
         },
     )
 
-    workflow.add_edge("verify", "compliance")
     workflow.add_conditional_edges(
-        "compliance",
-        _route_after_compliance,
+        "verify",
+        _route_after_verification,
         {
             "response": "response",
             "escalate": "escalate",
@@ -84,8 +86,15 @@ def _route_after_clarify(state: WorkflowState) -> str:
     return "escalate"
 
 
-def _route_after_compliance(state: WorkflowState) -> str:
-    """Decide whether to generate a response or escalate."""
+def _route_after_compliance_precheck(state: WorkflowState) -> str:
+    """Only safe emails may continue to extraction."""
+    if state.compliance_status == "safe":
+        return "extract"
+    return "escalate"
+
+
+def _route_after_verification(state: WorkflowState) -> str:
+    """Generate a response only for safe, valid, verified complaints."""
     if (
         state.compliance_status == "safe"
         and state.validation_status == "passed"

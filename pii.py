@@ -35,6 +35,20 @@ def detect_pii(text: str) -> List[str]:
     return found
 
 
+def redact_pii(text: str) -> str:
+    """Replace detected sensitive values with category placeholders.
+
+    The order keeps long numeric values such as card numbers from being
+    subsequently labelled as phone numbers.
+    """
+    redacted_text = text
+    for pii_type in ("credit_card", "aadhaar", "pan", "passport", "phone", "email"):
+        pattern = PII_PATTERNS[pii_type][0]
+        placeholder = f"[REDACTED_{pii_type.upper()}]"
+        redacted_text = re.sub(pattern, placeholder, redacted_text, flags=re.IGNORECASE)
+    return redacted_text
+
+
 def _spans_overlap(left: Tuple[int, int], right: Tuple[int, int]) -> bool:
     return left[0] < right[1] and right[0] < left[1]
 

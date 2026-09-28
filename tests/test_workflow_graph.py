@@ -1,11 +1,13 @@
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from graph.workflow import build_workflow_graph
+from nodes import escalation
 from state.workflow_state import WorkflowState
 
 
@@ -33,3 +35,18 @@ def test_workflow_graph_routes_invalid_request_to_escalation():
 
     assert final_state.route == "escalate"
     assert final_state.final_output != ""
+
+
+def test_workflow_graph_escalates_pii_without_calling_extraction(tmp_path, monkeypatch):
+    monkeypatch.setattr(escalation, "ESCALATION_DIR", tmp_path)
+    with patch("graph.workflow.extract_information", side_effect=AssertionError("LLM extraction should not run")):
+        workflow = build_workflow_graph()
+        state = WorkflowState(
+            raw_email="My card number is 4111 1111 1111 1111. Please review my billing issue."
+        )
+
+        result = workflow.invoke(state)
+
+    final_state = result if isinstance(result, WorkflowState) else WorkflowState(**result)
+    assert final_state.route == "escalate"
+    assert final_state.compliance_status == "high"

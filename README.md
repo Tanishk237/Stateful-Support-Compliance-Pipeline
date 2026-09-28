@@ -1,12 +1,22 @@
 # Support & Compliance Pipeline
 
-**Support & Compliance Pipeline** is a stateful AI workflow for processing customer billing complaint emails. It extracts structured complaint data, validates required fields, asks for clarification when information is missing, verifies billing claims against a mock database, checks for sensitive information, and then either generates a customer response or creates an internal escalation ticket.
+**Support & Compliance Pipeline** is a stateful AI workflow for one focused demo: customer billing-discrepancy emails. It safely extracts complaint data, validates it, verifies it against mock billing records, and produces either a customer reply or an internal escalation ticket.
 
 The project is built around LangGraph and a shared `WorkflowState`, so each step can read and update the same request state as the complaint moves through the pipeline.
 
-## Architecture Diagram
+## Demo Scope
 
-![alt text](image-1.png)
+The demo handles billing discrepancies only. It does not send real emails, issue refunds, or connect to a production billing system. That keeps the workflow easy to understand while demonstrating stateful routing, structured LLM extraction, deterministic fallbacks, validation, and PII handling.
+
+```text
+Customer billing email
+  → PII pre-check and redaction
+  ├─ sensitive data found → internal compliance escalation
+  └─ safe email → extraction → validation → clarification (if needed)
+                    → mock billing verification
+                    ├─ verified → customer response
+                    └─ mismatch/not found → billing escalation
+```
 
 ## Folder Structure
 
@@ -45,6 +55,7 @@ Important fields:
 
 - `request_id`: auto-assigned request id used in logs, responses, and escalation tickets.
 - `raw_email`: original customer complaint text.
+- `redacted_email`: PII-safe copy used when constructing an LLM prompt.
 - `conversation_history`: clarification messages generated during retries.
 - `retry_count`: number of clarification attempts.
 - `missing_fields`: required fields that are not available yet.
@@ -58,11 +69,11 @@ Important fields:
 
 ## Workflow Explanation
 
-1. `extract_information` reads the raw email and extracts `customer_name`, `account_id`, `claimed_amount`, `expected_amount`, and `issue_type`.
-2. `validate_extraction` checks that every required field is present and amount fields are numeric.
-3. `clarify_missing_information` asks for missing details and allows up to 3 retries.
-4. `verify_business_claim` checks the account, customer name, and claimed amount against `mock_db.py`.
-5. `evaluate_compliance` scans the raw email for PII such as credit cards, PAN, Aadhaar, passport numbers, phones, and emails.
+1. `evaluate_compliance` scans the raw email for PII, creates a redacted copy, and blocks risky emails before they can reach an external LLM.
+2. `extract_information` extracts `customer_name`, `account_id`, `claimed_amount`, `expected_amount`, and `issue_type` from the PII-safe email.
+3. `validate_extraction` checks that every required field is present and amount fields are numeric.
+4. `clarify_missing_information` asks for missing details and allows up to 3 retries.
+5. `verify_business_claim` checks the account, customer name, and claimed amount against `mock_db.py`.
 6. `generate_customer_response` runs only when validation passed, verification succeeded, and compliance is safe.
 7. `create_escalation_ticket` handles unsafe, unverifiable, invalid, or incomplete requests.
 
@@ -162,7 +173,7 @@ export LLM_API_KEY="your-api-key"
 python main.py --demo happy
 ```
 
-When `USE_LLM=1`, extraction and customer-response generation use the configured LLM. If the LLM package, network, API key, or model response fails, the execution history records the reason and the pipeline falls back to deterministic logic.
+When `USE_LLM=1`, extraction and customer-response generation use the configured LLM. Before extraction, the pipeline detects and redacts supported PII categories; emails with detected PII are escalated and never sent to the LLM. If the LLM package, network, API key, or model response fails, the execution history records the reason and the pipeline falls back to deterministic logic.
 
 The CLI prints the active LLM mode and extraction engine for every run:
 
@@ -182,7 +193,7 @@ Represented by the test suite:
 - Retry Limit: clarification retries stop at 3 and route to escalation.
 - Credit Card: compliance flags credit card PII as high risk.
 - Wrong Account: business verification fails with `not_found`.
-- Invalid JSON: extraction parse failure becomes validation failure.
+- Invalid JSON: extraction falls back to deterministic parsing.
 - Complete End-to-End: the whole graph produces a final route and output.
 
 Run tests:
@@ -202,6 +213,6 @@ python -m pytest -q
 - Build a web UI for support agents to review clarification, verification, and escalation details.
 - Add human approval before sending customer responses.
 - Add role-based escalation queues for billing, compliance, and support teams.
-- Extend PII policy checks with redaction before logs or tickets are written.
+- Make the PII policy configurable for different compliance requirements.
 - Add persistent workflow storage so interrupted requests can resume later.
 - Add more realistic billing scenarios, including partial credits, refunds, subscriptions, and invoice periods.

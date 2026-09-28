@@ -12,6 +12,7 @@ class WorkflowState(BaseModel):
 
     request_id: str = ""
     raw_email: str = ""
+    redacted_email: str = ""
     conversation_history: List[str] = Field(default_factory=list)
     retry_count: int = 0
     missing_fields: List[str] = Field(default_factory=list)

@@ -5,6 +5,7 @@ import re
 from typing import Any, Dict, Optional
 
 from config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, USE_LLM
+from pii import redact_pii
 from prompts import build_extraction_prompt
 from state.workflow_state import WorkflowState
 
@@ -15,10 +16,12 @@ except ImportError:  # pragma: no cover - depends on environment
 
 
 def extract_information(state: WorkflowState) -> WorkflowState:
-    """Extract structured complaint information from the raw email text."""
+    """Extract structured complaint information without exposing PII to the LLM."""
     state.ensure_request_id()
     email_content = state.raw_email or ""
-    prompt = build_extraction_prompt(email_content)
+    redacted_email = state.redacted_email or redact_pii(email_content)
+    state.redacted_email = redacted_email
+    prompt = build_extraction_prompt(redacted_email)
 
     try:
         extracted_payload = _extract_with_llm(prompt)
@@ -31,6 +34,9 @@ def extract_information(state: WorkflowState) -> WorkflowState:
         extraction_source = f"fallback ({type(exc).__name__}: {exc})"
 
     normalized_payload = _normalize_payload(extracted_payload)
+    for field in ("compliance", "compliance_details"):
+        if field in state.extracted_information:
+            normalized_payload[field] = state.extracted_information[field]
     if extraction_source == "llm":
         fallback_payload = _normalize_payload(_extract_with_fallback(email_content))
         filled_fields = _fill_missing_from_fallback(normalized_payload, fallback_payload)

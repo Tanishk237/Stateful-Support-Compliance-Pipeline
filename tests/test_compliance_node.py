@@ -25,6 +25,8 @@ def test_compliance_for_credit_card():
 
     assert updated_state.compliance_status == "high"
     assert "credit_card" in updated_state.extracted_information["compliance_details"]["pii_found"]
+    assert "4111 1111 1111 1111" not in updated_state.redacted_email
+    assert "[REDACTED_CREDIT_CARD]" in updated_state.redacted_email
 
 
 def test_compliance_for_pan():

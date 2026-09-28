@@ -91,3 +91,31 @@ def test_extract_fills_missing_llm_amounts_from_fallback(monkeypatch):
     assert updated_state.extracted_information["claimed_amount"] == 120.0
     assert updated_state.extracted_information["expected_amount"] == 400.0
     assert "fallback_fill" in updated_state.extracted_information["_extraction_source"]
+
+
+def test_extract_redacts_pii_before_building_an_llm_prompt(monkeypatch):
+    captured_prompt = ""
+
+    def fake_llm(prompt):
+        nonlocal captured_prompt
+        captured_prompt = prompt
+        return {
+            "customer_name": "Alice Johnson",
+            "account_id": "ACC1023",
+            "claimed_amount": 120,
+            "expected_amount": 100,
+            "issue_type": "billing_error",
+        }
+
+    monkeypatch.setattr("nodes.extract._extract_with_llm", fake_llm)
+    state = WorkflowState(
+        raw_email=(
+            "My name is Alice Johnson. My account ACC1023 was billed $120 but I expected "
+            "$100. My card number is 4111 1111 1111 1111."
+        )
+    )
+
+    extract_information(state)
+
+    assert "4111 1111 1111 1111" not in captured_prompt
+    assert "[REDACTED_CREDIT_CARD]" in captured_prompt
