@@ -1,7 +1,7 @@
 """Central workflow state for the support compliance pipeline."""
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -13,6 +13,15 @@ from models import (
     EscalationTicket,
     ExtractedInformation,
 )
+
+
+WorkflowRoute = Literal[
+    "pending",
+    "respond",
+    "clarify",
+    "billing_review",
+    "compliance_escalation",
+]
 
 
 class WorkflowState(BaseModel):
@@ -39,7 +48,7 @@ class WorkflowState(BaseModel):
     validation_status: str = "pending"
     verification_status: str = "pending"
     compliance_status: str = "pending"
-    route: str = "pending"
+    route: WorkflowRoute = "pending"
     final_output: str = ""
     execution_history: List[Dict[str, Any]] = Field(default_factory=list)
 

@@ -21,13 +21,18 @@ def generate_customer_response(state: WorkflowState) -> WorkflowState:
     is_validated = state.validation_status == "passed"
 
     if not (is_safe and is_validated and is_verified):
-        state.route = "escalate"
+        state.route = (
+            "compliance_escalation" if not is_safe else "billing_review"
+        )
         state.final_output = ""
-        state.record_event("response", "skipped", "Request is not safe, validated, or verified")
+        state.record_event("respond", "skipped", "Request is not safe, validated, or verified")
         return state
 
     customer_name = payload.customer_name.strip()
-    issue_summary = _build_issue_summary(payload, state.business_verification.difference)
+    issue_summary = _build_issue_summary(
+        payload,
+        state.business_verification.calculated_discrepancy,
+    )
     prompt = build_response_prompt(
         customer_name,
         issue_summary,
@@ -52,8 +57,8 @@ def generate_customer_response(state: WorkflowState) -> WorkflowState:
         subject=f"Billing complaint update — {request_id}",
         body=response_text,
     )
-    state.route = "response"
-    state.record_event("response", "generated", f"Customer response email generated using {response_source}")
+    state.route = "respond"
+    state.record_event("respond", "generated", f"Customer response email generated using {response_source}")
     return state
 
 
@@ -87,7 +92,9 @@ def _generate_with_llm(prompt: str) -> str:
     raise RuntimeError("The model response was empty")
 
 
-def _build_issue_summary(payload: ExtractedInformation, difference: Optional[float] = None) -> str:
+def _build_issue_summary(
+    payload: ExtractedInformation, discrepancy: Optional[float] = None
+) -> str:
     issue_type = payload.issue_type.replace("_", " ")
     account_id = payload.account_id or "your account"
     claimed_amount = payload.claimed_amount
@@ -96,8 +103,8 @@ def _build_issue_summary(payload: ExtractedInformation, difference: Optional[flo
     amount_part = ""
     if claimed_amount is not None and expected_amount is not None:
         amount_part = f" You reported a billed amount of ${claimed_amount} and an expected amount of ${expected_amount}."
-    if difference is not None:
-        amount_part += f" Our records show a difference of ${difference} against the claimed amount."
+    if discrepancy is not None:
+        amount_part += f" The verified billing discrepancy is ${discrepancy}."
 
     return f"Your {issue_type} for account {account_id} has been reviewed.{amount_part}"
 

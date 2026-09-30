@@ -55,8 +55,12 @@ Execution History:
         ticket_path=str(ticket_path),
     )
     state.final_output = ticket_text
-    state.route = "escalate"
-    state.record_event("escalation", "ticket_created", f"Escalation ticket {ticket_id} saved to {ticket_path}")
+    state.route = _determine_route(state)
+    state.record_event(
+        state.route,
+        "ticket_created",
+        f"Escalation ticket {ticket_id} saved to {ticket_path}",
+    )
     return state
 
 
@@ -96,6 +100,13 @@ def _determine_department(state: WorkflowState) -> str:
     return "support"
 
 
+def _determine_route(state: WorkflowState) -> str:
+    """Return one of the two explicit manual-review routes."""
+    if state.compliance_status in ("critical", "high"):
+        return "compliance_escalation"
+    return "billing_review"
+
+
 def _build_reason(state: WorkflowState) -> str:
     """Build a concise reason for escalation."""
     if state.compliance_status in ("critical", "high"):
@@ -104,7 +115,9 @@ def _build_reason(state: WorkflowState) -> str:
     if state.verification_status == "not_found":
         return "Account not found in the system."
     if state.verification_status == "mismatch":
-        return "Billing amount mismatch detected between claim and records."
+        reason_codes = state.business_verification.reason_codes
+        details = ", ".join(reason_codes) if reason_codes else "UNKNOWN_MISMATCH"
+        return f"Business verification failed: {details}."
     if state.retry_count >= 3:
         return "Clarification retry limit exceeded; customer failed to provide required information."
     if state.validation_status == "clarification":
@@ -121,6 +134,8 @@ def _build_summary(state: WorkflowState) -> str:
         f"Claimed Amount: ${payload.claimed_amount if payload.claimed_amount is not None else 'N/A'}",
         f"Expected Amount: ${payload.expected_amount if payload.expected_amount is not None else 'N/A'}",
         f"Verification Status: {state.verification_status}",
+        f"Verification Reasons: {', '.join(state.business_verification.reason_codes) or 'N/A'}",
+        f"Calculated Discrepancy: {state.business_verification.calculated_discrepancy}",
         f"Compliance Status: {state.compliance_status}",
         f"Retry Count: {state.retry_count}/3",
     ]

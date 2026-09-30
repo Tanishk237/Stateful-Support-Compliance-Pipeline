@@ -91,7 +91,7 @@ def run_interactive_workflow(state: WorkflowState) -> WorkflowState:
             return create_escalation_ticket(state)
 
         state = clarify_missing_information(state)
-        if state.route == "escalate":
+        if state.route == "billing_review":
             _step("Retry limit reached; creating escalation ticket")
             return create_escalation_ticket(state)
 
@@ -111,7 +111,7 @@ def run_interactive_workflow(state: WorkflowState) -> WorkflowState:
     ):
         _step("Generating customer response")
         state = generate_customer_response(state)
-        if state.route == "response":
+        if state.route == "respond":
             return state
 
     _step("Creating internal escalation ticket")

@@ -31,12 +31,13 @@ Email content:
 
 def build_clarification_prompt(missing_field: str, missing_fields: Iterable[str]) -> str:
     """Create the clarification prompt for missing required fields."""
-    missing_list = ", ".join(missing_fields)
-    return f"""
-The previous extraction was missing required information.
-Please ask the user to provide the missing field: {missing_field}.
-Missing fields currently: {missing_list}
-""".strip()
+    fields = list(missing_fields)
+    missing_list = ", ".join(fields)
+    labels = ", ".join(field.replace("_", " ") for field in fields)
+    first_label = missing_field.replace("_", " ")
+    if len(fields) == 1:
+        return f"Please provide your {first_label} to continue. Missing field: {missing_list}."
+    return f"Please provide these details to continue: {labels}. Missing fields: {missing_list}."
 
 
 def build_response_prompt(
@@ -56,7 +57,7 @@ Account ID: {details.get('account_id', '')}
 Issue type: {details.get('issue_type', '')}
 Claimed amount: {details.get('claimed_amount', '')}
 Expected amount: {details.get('expected_amount', '')}
-Verified difference: {details.get('difference', '')}
+Calculated discrepancy: {details.get('calculated_discrepancy', '')}
 Verification status: {details.get('verification_status', '')}
 Compliance status: {details.get('compliance_status', '')}
 

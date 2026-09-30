@@ -31,7 +31,7 @@ def test_escalation_ticket_for_unverified_account(tmp_path, monkeypatch):
     assert str(tmp_path) in ticket_path
     assert updated_state.request_id in Path(ticket_path).read_text()
     assert "billing" in updated_state.final_output.lower() or "issue" in updated_state.final_output.lower()
-    assert updated_state.route == "escalate"
+    assert updated_state.route == "billing_review"
 
 
 def test_escalation_ticket_for_compliance_violation():
@@ -49,6 +49,7 @@ def test_escalation_ticket_for_compliance_violation():
     assert updated_state.final_output != ""
     assert "T-" in updated_state.final_output
     assert "high" in updated_state.final_output.lower() or "pii" in updated_state.final_output.lower()
+    assert updated_state.route == "compliance_escalation"
 
 
 def test_escalation_ticket_for_retry_exceeded():

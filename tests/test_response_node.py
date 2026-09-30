@@ -25,7 +25,7 @@ def test_generate_response_for_safe_validated_verified_request():
     updated_state = generate_customer_response(state)
 
     assert updated_state.final_output != ""
-    assert updated_state.route == "response"
+    assert updated_state.route == "respond"
     assert updated_state.request_id.startswith("REQ-")
     assert updated_state.request_id in updated_state.final_output
     assert "Alice" in updated_state.final_output or "billing" in updated_state.final_output.lower()
@@ -41,5 +41,5 @@ def test_generate_response_only_when_safe_and_verified():
 
     updated_state = generate_customer_response(state)
 
-    assert updated_state.route == "escalate"
+    assert updated_state.route == "compliance_escalation"
     assert updated_state.final_output == ""

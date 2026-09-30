@@ -20,7 +20,7 @@ def test_workflow_graph_routes_valid_request_to_response():
     result = workflow.invoke(state)
     final_state = result if isinstance(result, WorkflowState) else WorkflowState(**result)
 
-    assert final_state.route == "response"
+    assert final_state.route == "respond"
     assert final_state.final_output != ""
 
 
@@ -33,7 +33,7 @@ def test_workflow_graph_pauses_invalid_request_for_clarification():
     result = workflow.invoke(state)
     final_state = result if isinstance(result, WorkflowState) else WorkflowState(**result)
 
-    assert final_state.route == "clarification"
+    assert final_state.route == "clarify"
     assert final_state.clarification_question
 
 
@@ -49,7 +49,7 @@ def test_workflow_graph_resumes_after_clarification():
     paused_state = first_result if isinstance(first_result, WorkflowState) else WorkflowState(**first_result)
     final_state = resume_workflow(paused_state, {"account_id": "ACC1023"})
 
-    assert final_state.route == "response"
+    assert final_state.route == "respond"
     assert final_state.validation_status == "passed"
 
 
@@ -64,5 +64,5 @@ def test_workflow_graph_escalates_pii_without_calling_extraction(tmp_path, monke
         result = workflow.invoke(state)
 
     final_state = result if isinstance(result, WorkflowState) else WorkflowState(**result)
-    assert final_state.route == "escalate"
+    assert final_state.route == "compliance_escalation"
     assert final_state.compliance_status == "high"

@@ -11,7 +11,7 @@ def clarify_missing_information(state: WorkflowState) -> WorkflowState:
     missing_fields = list(state.missing_fields or [])
     if not missing_fields:
         state.validation_status = "passed"
-        state.route = "response"
+        state.route = "respond"
         state.clarification_question = ""
         state.record_event("clarify", "completed", "No clarification required")
         return state
@@ -19,10 +19,10 @@ def clarify_missing_information(state: WorkflowState) -> WorkflowState:
     if state.retry_count < 3:
         state.retry_count += 1
         state.validation_status = "awaiting_clarification"
-        state.route = "clarification"
+        state.route = "clarify"
     else:
         state.validation_status = "clarification"
-        state.route = "escalate"
+        state.route = "billing_review"
 
     clarification_message = build_clarification_prompt(missing_fields[0], missing_fields)
     state.clarification_question = clarification_message
@@ -38,7 +38,7 @@ def apply_clarification_answers(state: WorkflowState, answers: Dict[str, Any]) -
     The caller supplies only the fields requested in ``state.missing_fields``.
     This keeps the resume contract simple for a CLI, web form, or API later.
     """
-    if state.route != "clarification":
+    if state.route != "clarify":
         raise ValueError("The workflow is not waiting for clarification")
 
     accepted_fields = []

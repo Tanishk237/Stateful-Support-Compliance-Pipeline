@@ -25,7 +25,7 @@ def test_happy_path_routes_to_response():
     result = workflow.invoke(state)
     final_state = result if isinstance(result, WorkflowState) else WorkflowState(**result)
 
-    assert final_state.route == "response"
+    assert final_state.route == "respond"
     assert final_state.validation_status == "passed"
     assert final_state.verification_status == "verified"
     assert final_state.compliance_status == "safe"
@@ -65,7 +65,7 @@ def test_retry_limit_escalates():
 
     updated_state = clarify_missing_information(state)
 
-    assert updated_state.route == "escalate"
+    assert updated_state.route == "billing_review"
     assert updated_state.retry_count == 3
 
 
@@ -116,6 +116,6 @@ def test_complete_end_to_end_workflow_for_valid_request():
     result = workflow.invoke(state)
     final_state = result if isinstance(result, WorkflowState) else WorkflowState(**result)
 
-    assert final_state.route == "response"
+    assert final_state.route == "respond"
     assert final_state.final_output != ""
     assert "Alice" in final_state.final_output or "billing" in final_state.final_output.lower()

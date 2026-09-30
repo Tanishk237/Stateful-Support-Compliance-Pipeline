@@ -10,7 +10,7 @@ from state.workflow_state import WorkflowState
 
 
 def test_logger_writes_run_log_with_summary_and_history(tmp_path):
-    state = WorkflowState(raw_email="Test email", route="response", retry_count=2)
+    state = WorkflowState(raw_email="Test email", route="respond", retry_count=2)
     state.execution_history = [
         {"step": "extract", "status": "completed"},
         {"step": "validate", "status": "passed"},
@@ -23,7 +23,7 @@ def test_logger_writes_run_log_with_summary_and_history(tmp_path):
     content = log_path.read_text()
     assert "Execution Summary" in content
     assert "extract" in content
-    assert "response" in content
+    assert "respond" in content
     assert "retry_count=2" in content
     assert "request_id=REQ-" in content
 
