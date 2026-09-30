@@ -30,11 +30,16 @@ def test_all_data_models_can_be_instantiated():
         department="billing",
         summary="Customer reports duplicate charge",
     )
-    verification = BusinessVerification(account_found=True, billing_match=False, difference=20.0)
+    verification = BusinessVerification(
+        account_found=True,
+        identity_match=True,
+        calculated_discrepancy=20.0,
+        reason_codes=["EXPECTED_AMOUNT_MISMATCH"],
+    )
     compliance = ComplianceResult(is_safe=False, risk_level="high", pii_found=["email"])
 
     assert extracted.customer_name == "Alice"
     assert response.subject == "Billing issue"
     assert ticket.department == "billing"
-    assert verification.difference == 20.0
+    assert verification.calculated_discrepancy == 20.0
     assert compliance.pii_found == ["email"]

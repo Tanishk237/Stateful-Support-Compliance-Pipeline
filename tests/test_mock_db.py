@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from mock_db import find_account, verify_amount, verify_customer
+from mock_db import find_account, verify_amount, verify_customer, verify_expected_amount
 
 
 def test_mock_database_lookup_account():
@@ -21,3 +21,5 @@ def test_mock_database_lookup_account():
 
     assert verify_amount("ACC1023", 120.0) is True
     assert verify_amount("ACC1023", 90.0) is False
+    assert verify_expected_amount("ACC1023", 100.0) is True
+    assert verify_expected_amount("ACC1023", 80.0) is False

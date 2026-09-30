@@ -8,6 +8,7 @@ CUSTOMER_RECORDS: Dict[str, Dict[str, object]] = {
         "account_id": "ACC1023",
         "customer_name": "Alice Johnson",
         "actual_bill": 120.0,
+        "expected_bill": 100.0,
         "plan": "Premium",
         "status": "active",
     },
@@ -15,6 +16,7 @@ CUSTOMER_RECORDS: Dict[str, Dict[str, object]] = {
         "account_id": "ACC2045",
         "customer_name": "Ben Carter",
         "actual_bill": 80.0,
+        "expected_bill": 60.0,
         "plan": "Basic",
         "status": "active",
     },
@@ -31,7 +33,8 @@ def verify_customer(account_id: str, customer_name: str) -> bool:
     account = find_account(account_id)
     if not account:
         return False
-    return account.get("customer_name") == customer_name
+    stored_name = str(account.get("customer_name", "")).strip().casefold()
+    return stored_name == customer_name.strip().casefold()
 
 
 def verify_amount(account_id: str, claimed_amount: float) -> bool:
@@ -39,4 +42,20 @@ def verify_amount(account_id: str, claimed_amount: float) -> bool:
     account = find_account(account_id)
     if not account:
         return False
-    return float(account.get("actual_bill", 0.0)) == float(claimed_amount)
+    return _amounts_match(account.get("actual_bill"), claimed_amount)
+
+
+def verify_expected_amount(account_id: str, expected_amount: float) -> bool:
+    """Verify that the expected amount matches the stored expected bill."""
+    account = find_account(account_id)
+    if not account:
+        return False
+    return _amounts_match(account.get("expected_bill"), expected_amount)
+
+
+def _amounts_match(first: object, second: object) -> bool:
+    """Compare currency values at cent precision."""
+    try:
+        return round(float(first), 2) == round(float(second), 2)
+    except (TypeError, ValueError):
+        return False

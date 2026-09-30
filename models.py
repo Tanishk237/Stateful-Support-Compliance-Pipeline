@@ -3,6 +3,17 @@ from typing import List, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+VerificationReason = Literal[
+    "VERIFIED",
+    "ACCOUNT_NOT_FOUND",
+    "IDENTITY_MISMATCH",
+    "ACCOUNT_INACTIVE",
+    "CLAIMED_AMOUNT_MISMATCH",
+    "EXPECTED_AMOUNT_MISMATCH",
+    "DISCREPANCY_MISMATCH",
+]
+
+
 class ExtractedInformation(BaseModel):
     """Structured information extracted from a complaint email."""
 
@@ -44,8 +55,17 @@ class BusinessVerification(BaseModel):
     """Business verification outcome for the complaint."""
 
     account_found: bool = False
+    identity_match: bool = False
+    claimed_amount_match: bool = False
+    expected_amount_match: bool = False
+    account_status: str = "unknown"
+    account_active: bool = False
+    calculated_discrepancy: Optional[float] = None
+    recorded_discrepancy: Optional[float] = None
+    discrepancy_match: bool = False
     billing_match: bool = False
     difference: Optional[float] = None
+    reason_codes: List[VerificationReason] = Field(default_factory=list)
 
 
 class ComplianceResult(BaseModel):
@@ -62,4 +82,5 @@ __all__ = [
     "CustomerResponse",
     "EscalationTicket",
     "ExtractedInformation",
+    "VerificationReason",
 ]
