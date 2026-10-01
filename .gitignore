@@ -2,7 +2,12 @@
 .venv/
 __pycache__/
 .pytest_cache/
+.playwright-mcp/
 .DS_Store
 logs/*.log
 escalation_tickets/*.txt
 !escalation_tickets/.gitkeep
+data/*.db
+data/*.db-shm
+data/*.db-wal
+!data/.gitkeep
