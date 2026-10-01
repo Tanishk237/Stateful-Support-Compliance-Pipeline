@@ -3,3 +3,5 @@ openai
 pydantic
 python-dotenv
 pytest
+fastapi
+uvicorn
