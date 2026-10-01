@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explore a working GenAI billing support workflow. Follow a complaint through privacy checks, structured extraction, verification, and a clear next step.">
+  <meta name="theme-color" content="#f5f8f5">
+  <meta property="og:title" content="Resolve | Support, with a clear next step">
+  <meta property="og:description" content="An interactive demo of a stateful support and compliance pipeline. Built with LangGraph, Pydantic, FastAPI, and SQLite.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="/assets/workflow-sculpture.jpg">
+  <title>Resolve | Support & Compliance Pipeline</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/assets/space-grotesk.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <script src="/assets/theme.js"></script>
+  <script src="/assets/app.js" type="module"></script>
+</head>
+<body>
+  <a href="#demo" class="skip-link">Skip to interactive demo</a>
+  <header class="site-header">
+    <div class="container nav-inner">
+      <a class="brand" href="#top" aria-label="Resolve home"><span class="brand-mark" aria-hidden="true"></span>resolve<span class="brand-period">.</span></a>
+      <nav aria-label="Main navigation">
+        <a href="#demo">Playground</a>
+        <a href="#workflow">The workflow</a>
+        <a href="#build" class="nav-build">Under the hood</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="icon-button" id="theme-toggle" aria-label="Switch color theme" title="Switch color theme"><img class="icon" src="/assets/moon.svg" alt=""></button>
+        <a class="source-link" href="https://github.com/Tanishk237/Stateful-Support-Compliance-Pipeline" target="_blank" rel="noopener noreferrer">Source code <img class="icon" src="/assets/arrow-up-right.svg" alt=""></a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero container" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">SUPPORT, WITH A SENSE OF DIRECTION</p>
+        <h1 id="hero-title">Every complaint.<br><span>A clear next step.</span></h1>
+        <p class="hero-description">Turn a billing email into a verified response. Follow every decision in a working GenAI workflow.</p>
+        <div class="hero-actions">
+          <a class="button button-dark" href="#demo">Try the demo <img class="icon" src="/assets/arrow-up-right.svg" alt=""></a>
+          <a class="text-link" href="#workflow">See how it works <img class="icon" src="/assets/arrow-down.svg" alt=""></a>
+        </div>
+      </div>
+      <div class="hero-visual" aria-label="A floating glass loop representing a connected support workflow">
+        <img class="hero-sculpture" src="/assets/workflow-sculpture.jpg" width="900" height="900" fetchpriority="high" alt="A pale green glass ribbon following a continuous path, with silver and glass spheres">
+        <a href="#workflow" class="floating-label label-incoming"><span class="label-icon"><img class="icon" src="/assets/mail.svg" alt=""></span><span>One email.<small>A place to start.</small></span></a>
+        <a href="#workflow" class="floating-label label-privacy"><span class="label-icon"><img class="icon" src="/assets/shield-check.svg" alt=""></span><span>Privacy comes first.</span></a>
+        <a href="#demo" class="floating-label label-route"><span class="label-icon"><img class="icon" src="/assets/route.svg" alt=""></span><span>Every route, explained.</span></a>
+        <button id="motion-toggle" class="motion-control" aria-pressed="false"><img class="icon" src="/assets/player-pause.svg" alt=""><span>Pause motion</span></button>
+      </div>
+    </section>
+
+    <div class="container project-strip">
+      <span>A working project, from input to outcome.</span>
+      <div><span>LangGraph</span><span>Pydantic</span><span>FastAPI</span><span>SQLite</span></div>
+    </div>
+
+    <section class="demo-section container" id="demo" aria-labelledby="demo-title">
+      <div class="section-heading reveal">
+        <h2 id="demo-title">Take it for a spin<span class="accent">.</span></h2>
+        <p>Pick a scenario, make it your own, and see where the workflow takes it.</p>
+      </div>
+      <div class="workspace reveal">
+        <div class="workspace-toolbar">
+          <span class="workspace-title"><img class="icon" src="/assets/route.svg" alt="">The playground</span>
+          <div class="toolbar-meta"><span id="engine-mode">Checking mode</span><span class="connection" id="connection-status"><span class="status-dot"></span><span>Connecting</span></span></div>
+        </div>
+        <section class="live-flow" aria-labelledby="live-flow-title">
+          <div class="flow-heading"><div><h3 id="live-flow-title">Watch the graph think.</h3><p>Real backend events. Select a node to inspect its output.</p></div><span id="flow-status" class="flow-status" role="status">Ready to run</span></div>
+          <p class="graph-scroll-hint">Swipe to explore all 8 nodes <span aria-hidden="true">→</span></p>
+          <div class="graph-scroll" role="region" aria-label="Workflow graph; scroll horizontally on small screens" tabindex="0">
+            <div class="graph-map" id="graph-map">
+              <svg class="graph-lines" viewBox="0 0 1000 242" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="flow-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M1 1 L8 5 L1 9"/></marker></defs><path d="M100 43 H900 M100 43 V186 M500 43 V186 M700 43 V186 H900"/><path class="return-path" d="M500 220 H590 V94 H500" marker-end="url(#flow-arrow)"/><path class="alternate-path" d="M510 94 V112 H750 V136 M580 186 H625" marker-end="url(#flow-arrow)"/></svg>
+              <button class="graph-node" data-node="compliance"><span class="node-number">01 / PRIVACY</span><strong>Compliance</strong><span class="node-status">Waiting</span></button>
+              <button class="graph-node" data-node="extract"><span class="node-number">02 / GEN AI</span><strong>Extraction</strong><span class="node-status">Waiting</span></button>
+              <button class="graph-node" data-node="validate"><span class="node-number">03 / CONTRACT</span><strong>Validation</strong><span class="node-status">Waiting</span></button>
+              <button class="graph-node" data-node="verify"><span class="node-number">04 / RECORDS</span><strong>Verification</strong><span class="node-status">Waiting</span></button>
+              <button class="graph-node" data-node="respond"><span class="node-number">05 / OUTCOME</span><strong>Response</strong><span class="node-status">Waiting</span></button>
+              <button class="graph-node branch-node" data-node="compliance_escalation"><span class="node-number">SENSITIVE DATA ↓</span><strong>Compliance ticket</strong><span class="node-status">Waiting</span></button>
+              <button class="graph-node branch-node" data-node="clarify"><span class="node-number">MISSING DETAILS ↓</span><strong>Clarification</strong><span class="node-status">Waiting</span></button>
+              <button class="graph-node branch-node" data-node="billing_review"><span class="node-number">CHECK FAILED ↓</span><strong>Billing review</strong><span class="node-status">Waiting</span></button>
+            </div>
+          </div>
+          <div class="graph-caption"><span>Clarification + answer ↩ validation. Invalid input or exhausted retries → billing review.</span><span><i class="legend-dot"></i> Actual path <i class="legend-dot inactive"></i> Not taken</span></div>
+          <details class="node-inspector" id="node-inspector"><summary><span id="node-inspector-title">Inside a node</span><span>Inspect output +</span></summary><p id="node-inspector-note">Select any node above. Its output appears here when it completes.</p><pre id="node-inspector-output" hidden></pre></details>
+        </section>
+        <div class="workspace-body">
+          <div class="composer">
+            <div class="panel-heading"><h3>Start with a complaint</h3><button class="text-button" id="reset-demo" type="button">Clear</button></div>
+            <p class="small muted">Choose a sample</p>
+            <div class="scenario-list" aria-label="Sample complaints">
+              <button class="scenario selected" type="button" data-scenario="verified" aria-pressed="true">Billing discrepancy</button>
+              <button class="scenario" type="button" data-scenario="clarify" aria-pressed="false">Missing details</button>
+              <button class="scenario" type="button" data-scenario="privacy" aria-pressed="false">Sensitive data</button>
+              <button class="scenario" type="button" data-scenario="review" aria-pressed="false">Account mismatch</button>
+            </div>
+            <p id="scenario-hint" class="scenario-hint">A complete complaint that matches the demo billing record.</p>
+            <form id="complaint-form">
+              <label for="email">Customer email</label>
+              <textarea id="email" name="email" rows="7" required maxlength="10000" aria-describedby="input-note" spellcheck="false">Hello, my name is Alice Johnson. My account ACC1023 was billed $120 but I expected $100 for a duplicate charge.</textarea>
+              <div class="input-footer"><span id="input-note">Use sample details for this public demo.</span><span id="character-count"></span></div>
+              <div class="speech-controls"><button id="speech-toggle" class="speech-button" type="button" aria-pressed="false" aria-describedby="speech-note"><img class="icon" src="/assets/microphone.svg" alt=""><span>Dictate your issue</span></button><span id="speech-status" role="status">Type or speak. Your choice.</span></div>
+              <p id="speech-interim" class="speech-interim" aria-live="polite" hidden></p>
+              <p id="speech-note" class="speech-note">Speech may be processed by your browser’s provider. Use demo details and review the text before sending.</p>
+              <button class="button button-accent run-button" id="run-button" type="submit"><span>Run workflow</span><img class="icon" src="/assets/arrow-right.svg" alt=""></button>
+            </form>
+            <p class="inline-error" id="request-error" role="alert" hidden></p>
+            <div class="sample-record"><img class="icon" src="/assets/database.svg" alt=""><div><strong>Your demo record</strong><span>Alice Johnson · ACC1023</span><span>$120 billed / $100 expected / Active</span></div></div>
+            <details class="restore-request">
+              <summary>Reopen a saved request <span aria-hidden="true">+</span></summary>
+              <form id="restore-form"><label for="request-id-input">Request ID</label><input id="request-id-input" placeholder="REQ-..." required autocomplete="off"><button class="button button-secondary" type="submit">Load request <img class="icon" src="/assets/arrow-right.svg" alt=""></button></form>
+            </details>
+          </div>
+
+          <div class="results" id="results" aria-busy="false">
+            <div class="panel-heading"><h3>The next step</h3><span class="result-label" id="result-label">Ready when you are</span></div>
+            <div id="result-empty" class="empty-state">
+              <div class="empty-symbol" aria-hidden="true"><img src="/assets/route.svg" alt=""></div>
+              <h4>A little context.<br>A lot more clarity.</h4>
+              <p>Run a complaint to see its response, extracted fields, and the decisions behind them.</p>
+              <div class="outcome-options"><span>Respond</span><span>Clarify</span><span>Review</span></div>
+            </div>
+            <div id="result-loading" class="loading-state" hidden>
+              <p class="loading-title">Following the complaint through the workflow…</p>
+              <p class="small muted">Follow the live graph above. Your final outcome will appear here.</p>
+              <div class="skeleton skeleton-short"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton skeleton-medium"></div>
+            </div>
+            <div id="result-content" hidden>
+              <div class="outcome-banner" id="outcome-banner"><span class="outcome-icon"><img class="icon" src="/assets/check.svg" alt=""></span><div><h4 id="outcome-title"></h4><p id="outcome-description"></p></div></div>
+              <div class="result-meta"><span id="request-id"></span><span id="run-duration"></span></div>
+              <div class="result-tabs" role="tablist" aria-label="Workflow result">
+                <button id="tab-output" role="tab" aria-selected="true" aria-controls="panel-output" data-tab="output">Outcome</button>
+                <button id="tab-fields" role="tab" aria-selected="false" aria-controls="panel-fields" data-tab="fields" tabindex="-1">Extraction</button>
+                <button id="tab-checks" role="tab" aria-selected="false" aria-controls="panel-checks" data-tab="checks" tabindex="-1">Checks</button>
+                <button id="tab-trace" role="tab" aria-selected="false" aria-controls="panel-trace" data-tab="trace" tabindex="-1">Activity</button>
+              </div>
+              <section id="panel-output" role="tabpanel" aria-labelledby="tab-output" tabindex="0">
+                <div id="clarification" hidden><p id="clarification-question"></p><form id="clarification-form"><div id="clarification-fields"></div><button class="button button-accent" type="submit">Continue workflow <img class="icon" src="/assets/arrow-right.svg" alt=""></button></form></div>
+                <div class="response-body" id="final-output"></div>
+                <p class="output-note" id="output-note"></p>
+              </section>
+              <section id="panel-fields" role="tabpanel" aria-labelledby="tab-fields" tabindex="0" hidden><dl class="field-list" id="extracted-fields"></dl><div class="extraction-provenance" id="extraction-provenance"></div></section>
+              <section id="panel-checks" role="tabpanel" aria-labelledby="tab-checks" tabindex="0" hidden><h4>Privacy check</h4><p id="compliance-summary"></p><details><summary>View redacted input</summary><pre id="redacted-email"></pre></details><h4 class="checks-heading">Business verification</h4><div id="business-checks"></div></section>
+              <section id="panel-trace" role="tabpanel" aria-labelledby="tab-trace" tabindex="0" hidden><ol id="execution-history" class="execution-history"></ol></section>
+              <div class="result-actions"><button class="text-button" id="copy-output"><img class="icon" src="/assets/copy.svg" alt="">Copy output</button><button class="text-button" id="download-state"><img class="icon" src="/assets/download.svg" alt="">Download JSON</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="workspace-bottom"><img class="icon" src="/assets/shield-check.svg" alt=""><span>Demo billing records. Draft responses only. No emails sent or refunds issued.</span></div>
+      </div>
+      <p class="live-announcement" id="announcement" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="workflow" class="workflow-section container" aria-labelledby="workflow-title">
+      <div class="section-heading reveal"><h2 id="workflow-title">There’s a reason for every route.</h2><p>One shared state carries the complaint through each decision. Open a step to see what it does.</p></div>
+      <div class="workflow-layout reveal">
+        <div class="workflow-intro"><span class="large-route-mark" aria-hidden="true"><img src="/assets/route.svg" alt=""></span><h3>Context stays.<br>Decisions move forward.</h3><p>A missing detail pauses the workflow. A customer’s answer continues it from validation, with the earlier context intact.</p><a href="/docs" class="text-link" target="_blank" rel="noopener">Explore the API <img class="icon" src="/assets/arrow-up-right.svg" alt=""></a></div>
+        <div class="workflow-steps">
+          <details open><summary><span class="step-index">01</span><span>Check privacy first</span><span class="step-toggle">+</span></summary><div class="step-detail"><p>Scan for supported sensitive-data patterns and create a redacted copy. Flagged complaints go straight to a compliance ticket before extraction.</p><span class="code-label">compliance → extract or compliance_escalation</span></div></details>
+          <details><summary><span class="step-index">02</span><span>Extract the useful details</span><span class="step-toggle">+</span></summary><div class="step-detail"><p>Convert the email into a Pydantic model: customer, account, amounts, and issue. Versioned prompts and deterministic fallback keep the demo usable without an API key.</p><span class="code-label">email → ExtractedInformation</span></div></details>
+          <details><summary><span class="step-index">03</span><span>Ask for what’s missing</span><span class="step-toggle">+</span></summary><div class="step-detail"><p>Missing details produce a clarification question. The next answer is merged into the saved state, then checked again. Three attempts are allowed.</p><span class="code-label">validate → clarify → validate</span></div></details>
+          <details><summary><span class="step-index">04</span><span>Verify against the record</span><span class="step-toggle">+</span></summary><div class="step-detail"><p>Check the account, customer name, claimed amount, expected amount, account status, and discrepancy against mock billing records. Failed checks include reason codes.</p><span class="code-label">verify → reason_codes</span></div></details>
+          <details><summary><span class="step-index">05</span><span>Choose the next step</span><span class="step-toggle">+</span></summary><div class="step-detail"><p>Verified requests get a drafted response. Mismatches get a billing ticket. The outcome, execution history, and ticket are saved in SQLite.</p><span class="code-label">respond or billing_review → SQLite</span></div></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="build-section container" id="build" aria-labelledby="build-title">
+      <div class="build-intro reveal"><p class="eyebrow">UNDER THE HOOD</p><h2 id="build-title">Small stack.<br>Complete workflow.</h2><p>GenAI for interpreting language. Explicit rules for making decisions. A saved state that ties it all together.</p><a href="https://github.com/Tanishk237/Stateful-Support-Compliance-Pipeline" class="button button-dark" target="_blank" rel="noopener noreferrer">Source code <img class="icon" src="/assets/arrow-up-right.svg" alt=""></a></div>
+      <div class="build-details reveal">
+        <div class="stack-row"><span class="stack-icon"><img class="icon" src="/assets/route.svg" alt=""></span><div><h3>LangGraph</h3><p>Stateful orchestration and explicit routing.</p></div><span class="stack-role">The flow</span></div>
+        <div class="stack-row"><span class="stack-icon"><img class="icon" src="/assets/code.svg" alt=""></span><div><h3>Pydantic</h3><p>Typed extraction and validated workflow results.</p></div><span class="stack-role">The contract</span></div>
+        <div class="stack-row"><span class="stack-icon"><img class="icon" src="/assets/arrow-up-right.svg" alt=""></span><div><h3>FastAPI</h3><p>One server for the website and complaint API.</p></div><span class="stack-role">The interface</span></div>
+        <div class="stack-row"><span class="stack-icon"><img class="icon" src="/assets/database.svg" alt=""></span><div><h3>SQLite</h3><p>Workflow state, history, and escalation tickets.</p></div><span class="stack-role">The memory</span></div>
+        <p class="build-footnote">Provider-independent LLM configuration. Deterministic mode included. Built to run locally or in one container.</p>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer container"><a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span>resolve<span class="brand-period">.</span></a><p>A Support & Compliance Pipeline project by Tanishk.</p><a href="/docs" target="_blank" rel="noopener">API docs <img class="icon" src="/assets/arrow-up-right.svg" alt=""></a></footer>
+  <noscript><div class="noscript-note">Enable JavaScript to run the interactive demo. You can also explore the <a href="/docs">API documentation</a>.</div></noscript>
+</body>
+</html>
