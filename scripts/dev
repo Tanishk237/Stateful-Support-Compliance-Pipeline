@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+set -eu
+
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PYTHON_BIN="$PROJECT_DIR/.venv/bin/python"
+DEV_HOST="${SUPPORT_HOST:-127.0.0.1}"
+DEV_PORT="${SUPPORT_PORT:-${PORT:-8501}}"
+
+if [ ! -x "$PYTHON_BIN" ]; then
+    echo "Project virtual environment not found."
+    echo "Run: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
+    exit 1
+fi
+
+cd "$PROJECT_DIR"
+
+# Check before starting; never kill another process to free a port.
+"$PYTHON_BIN" - "$DEV_HOST" "$DEV_PORT" <<'PY'
+import socket
+import sys
+
+host, value = sys.argv[1:]
+try:
+    port = int(value)
+    if not 1 <= port <= 65535:
+        raise ValueError
+except ValueError:
+    sys.exit("SUPPORT_PORT must be a number between 1 and 65535.")
+try:
+    with socket.socket() as connection:
+        connection.bind((host, port))
+except OSError as error:
+    sys.exit(f"Cannot use {host}:{port}: {error}\nTry another port: SUPPORT_PORT=8502 ./scripts/dev")
+PY
+
+echo "Starting Resolve · Support & Compliance Pipeline"
+echo "Website + API: http://$DEV_HOST:$DEV_PORT"
+echo "API docs:      http://$DEV_HOST:$DEV_PORT/docs"
+echo "Press Ctrl+C to stop."
+
+# One process serves both the static frontend and API, locally and in deployment.
+exec "$PYTHON_BIN" -m uvicorn api:app --host "$DEV_HOST" --port "$DEV_PORT"

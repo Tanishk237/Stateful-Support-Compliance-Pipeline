@@ -1,0 +1,11 @@
+.git
+.agents
+.codex
+.playwright-mcp
+.env
+.venv
+__pycache__
+.pytest_cache
+data/*.db*
+escalation_tickets/*.txt
+logs/*.log
