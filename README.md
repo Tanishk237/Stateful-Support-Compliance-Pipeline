@@ -1,135 +1,136 @@
-# Support & Compliance Pipeline
+<p align="center">
+  <img src="frontend/assets/favicon.svg" width="72" alt="Resolve logo">
+</p>
 
-A focused portfolio demo for customer billing complaints. The project accepts a complaint email, removes sensitive data before any external LLM call, extracts a typed payload, validates and verifies the claim, then returns a response or creates an escalation.
+<h1 align="center">Resolve</h1>
 
-The same workflow powers a CLI and **Resolve**, an interactive portfolio website served by FastAPI. SQLite stores each request, its execution history, and escalation tickets. The frontend is plain HTML, CSS, and JavaScript: no Node install, frontend build step, or second server.
+<p align="center">
+  <strong>A stateful GenAI support and compliance pipeline for billing complaints.</strong>
+</p>
 
-## Demo Flow
+<p align="center">
+  Privacy first. Typed extraction. Explainable verification. A clear next step.
+</p>
 
-```text
-Billing complaint
-  → compliance check and redaction
-  ├─ sensitive data → compliance_escalation
-  └─ safe → structured extraction → validation
-             ├─ missing fields → clarify → resume validation
-             └─ complete → business verification
-                            ├─ all checks pass → respond
-                            └─ check fails → billing_review
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11%2B-173c2d?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/FastAPI-API-173c2d?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/LangGraph-workflow-286b4e?style=flat-square" alt="LangGraph">
+  <img src="https://img.shields.io/badge/Pydantic-typed-286b4e?style=flat-square&logo=pydantic&logoColor=white" alt="Pydantic">
+  <img src="https://img.shields.io/badge/SQLite-state-c7efcf?style=flat-square&logo=sqlite&logoColor=173c2d" alt="SQLite">
+  <img src="https://img.shields.io/badge/Docker-ready-c7efcf?style=flat-square&logo=docker&logoColor=173c2d" alt="Docker ready">
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#how-the-workflow-runs">Workflow</a> ·
+  <a href="#api">API</a> ·
+  <a href="#deployment">Deployment</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/resolve-home.jpeg" alt="Resolve portfolio interface showing the billing complaint workflow" width="100%">
+</p>
+
+## What is Resolve?
+
+Resolve is a focused portfolio project that turns a billing complaint into one of four explicit outcomes: a drafted response, a request for clarification, a billing review, or a compliance escalation.
+
+It demonstrates where GenAI is useful and where deterministic rules should stay in control. The language model extracts structured information from a **redacted** complaint; Pydantic, business rules, and LangGraph control validation, verification, routing, and persistence.
+
+> [!IMPORTANT]
+> Sensitive-data detection runs before any external LLM call. Unsafe input is redacted and routed to compliance without entering extraction.
+
+## Why this project stands out
+
+| Capability | What it demonstrates |
+| --- | --- |
+| **Compliance-first processing** | Detects and redacts supported PII patterns before model access. |
+| **Structured GenAI extraction** | Validates model output with Pydantic, versions prompts, handles failures, and falls back deterministically. |
+| **Stateful clarification** | Pauses for missing details, merges the next answer, and resumes from validation without starting over. |
+| **Explainable verification** | Checks identity, both amounts, account status, and discrepancy with explicit reason codes. |
+| **Live workflow observability** | Streams actual node start/completion events, timings, routes, and node outputs to the browser. |
+| **Simple full-stack delivery** | One FastAPI process serves the UI and API; SQLite stores state; Docker runs the complete project. |
+
+## How the workflow runs
+
+```mermaid
+flowchart TD
+    A[Customer billing complaint] --> B[Compliance and PII scan]
+    B -->|Sensitive data found| CE[Compliance escalation]
+    B -->|Safe, redacted text| X[Structured extraction]
+    X --> V[Pydantic validation]
+    V -->|Required fields missing| C[Clarification requested]
+    C -->|Customer answers| V
+    V -->|Valid payload| BV[Business verification]
+    V -->|Invalid or retry limit reached| BR[Billing review]
+    BV -->|All checks pass| R[Draft customer response]
+    BV -->|Identity, amount, status, or discrepancy mismatch| BR
+    CE --> S[(SQLite state, history, and tickets)]
+    BR --> S
+    R --> S
+    C --> S
 ```
 
-The demo deliberately handles one use case: billing discrepancies. It does not send real emails, issue refunds, or connect to a production billing platform.
+The graph exposes four routes deliberately, rather than hiding decisions behind a single generic “success” response:
 
-## What It Demonstrates
+| Route | Meaning |
+| --- | --- |
+| `respond` | The complaint is safe, complete, and verified. |
+| `clarify` | Required information is missing; the workflow is paused and resumable. |
+| `billing_review` | Business verification failed or clarification attempts were exhausted. |
+| `compliance_escalation` | Sensitive information was detected before extraction. |
 
-- Stateful orchestration with LangGraph and a shared Pydantic model.
-- Compliance-first processing: PII is detected and redacted before external LLM use.
-- Structured LLM extraction with schema validation, prompt versioning, clear errors, and deterministic fallback.
-- Resumable clarification that merges the customer's answer and continues from validation.
-- Business verification of identity, claimed amount, expected amount, account status, and calculated discrepancy.
-- Clear verification reason codes such as `IDENTITY_MISMATCH`, `ACCOUNT_INACTIVE`, and `DISCREPANCY_MISMATCH`.
-- Four explicit outcome routes: `respond`, `clarify`, `billing_review`, and `compliance_escalation`.
-- Lightweight SQLite persistence and simple API/UI entry points.
-- Live backend graph events: see active nodes, branches, timings, and per-node results.
-- Browser speech-to-text with editable transcription, plus four ready-to-run scenarios.
+## Interactive demo
 
-## Project Structure
+The browser experience is a real interface over the backend, not a scripted mock.
 
-```text
-├── api.py                       # FastAPI routes
-├── frontend/index.html          # Portfolio page and interactive playground
-├── frontend/assets/             # Styles, app/graph/speech JS, self-hosted assets
-├── service.py                   # Shared application service
-├── persistence.py               # SQLite store
-├── graph/workflow.py            # LangGraph workflow and routing
-├── nodes/                        # Workflow steps
-├── state/workflow_state.py      # Shared state model
-├── models.py                    # Typed workflow results
-├── mock_db.py                   # Demo billing records
-├── prompts.py                   # Versioned prompts
-├── pii.py                       # PII detection and redaction
-├── main.py                      # CLI
-├── sample_emails/               # Demo inputs
-├── tests/                       # Node, graph, API, and persistence tests
-├── data/                        # Local SQLite database (generated)
-├── scripts/dev                  # Start website + API with one command
-└── Dockerfile                   # One-container website + API
-```
+- Choose from verified, clarification, privacy, and account-mismatch scenarios.
+- Watch the active backend node and route update through server-sent events.
+- Select any completed graph node to inspect its actual output.
+- Review extracted fields, compliance findings, verification checks, and activity history.
+- Answer clarification questions and resume the same request.
+- Reopen a persisted request, copy its output, or download its JSON state.
+- Dictate a complaint with browser speech-to-text, then edit it before submission.
+- Switch themes, pause motion, and navigate the result panels by keyboard.
 
-## Quick Start
+<p align="center">
+  <img src="frontend/assets/workflow-sculpture.jpg" width="460" alt="A translucent green continuous loop representing the stateful Resolve workflow">
+</p>
+
+> [!NOTE]
+> Speech recognition depends on browser support and requires HTTPS or localhost. The browser's speech provider may process audio; Resolve only receives the reviewed transcript.
+
+## Quick start
 
 ```bash
-python3 -m venv .venv            # Python 3.11+ recommended
+git clone https://github.com/Tanishk237/Stateful-Support-Compliance-Pipeline.git
+cd Stateful-Support-Compliance-Pipeline
+
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
 
-The application works without an LLM key by using deterministic extraction and response fallbacks.
-
-Start the API and visual demo together:
-
-```bash
 ./scripts/dev
 ```
 
-Open **http://127.0.0.1:8501**. The website and API now share one FastAPI process. API docs are at `/docs`. Press `Ctrl+C` to stop. If the port is occupied, use `SUPPORT_PORT=8502 ./scripts/dev`; the launcher never kills an existing process. `SUPPORT_HOST` changes the bind address and `PORT` is also accepted. The old separate API/UI port settings are no longer used.
+Open [`http://127.0.0.1:8501`](http://127.0.0.1:8501). API documentation is available at [`/docs`](http://127.0.0.1:8501/docs).
 
-### Visual Demo
+No LLM key is required. The project starts in deterministic mode so the full demo remains usable and free to run.
 
-The playground includes four scenarios: verified billing discrepancy, missing account details, synthetic sensitive data, and a customer-name mismatch. It displays the **actual backend graph** as nodes start and finish, including the clarification pause/resume path. Click a node to inspect its output. Deterministic runs often finish in milliseconds; no artificial delays are added. The result tabs show extracted fields, privacy/business checks, and execution history. Copy the output, download the state, or reopen a saved request by ID (also retained in the URL).
-
-Use **Clear → Dictate your issue** to enter a complaint by voice. Stop recording, review names/account numbers/amounts, then submit. This uses the browser's Speech Recognition API, which is not supported in every browser and needs microphone permission plus HTTPS or localhost. Unsupported browsers keep the text input fully usable. Audio may be processed by the browser's speech provider; our backend only receives the reviewed text. Do not dictate real sensitive data.
-
-The page includes light/dark themes, keyboard-accessible controls, a motion pause button, and support for reduced-motion preferences.
-
-### FastAPI Backend
+If port `8501` is already occupied:
 
 ```bash
-uvicorn api:app --reload
+SUPPORT_PORT=8502 ./scripts/dev
 ```
 
-Open `http://localhost:8000/docs` for the interactive API documentation.
+## GenAI configuration
 
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| `POST` | `/complaints` | Create and run a billing complaint |
-| `POST` | `/complaints/{request_id}/clarification` | Submit requested missing fields and resume |
-| `GET` | `/complaints/{request_id}` | Read the latest saved state |
-| `GET` | `/health` | Check the API and SQLite connection |
-| `POST` | `/complaints/stream` | Run a complaint with live server-sent events |
-| `POST` | `/complaints/{request_id}/clarification/stream` | Resume with live server-sent events |
-| `GET` | `/demo-config` | Report whether LLM mode is enabled; no secrets |
-
-Streaming requests take the same JSON as their non-streaming counterparts. Events are `request_started`, `step_started`, `step_completed` (node output state and elapsed milliseconds), `complete` (persisted final state), or `error`. Validation/lookup errors return normal HTTP errors before streaming begins. Runtime errors produce an `error` event instead of a false completion. Node snapshots are live-only; reopened requests display saved activity. Disable proxy buffering for the streaming endpoints if your host buffers responses.
-
-Create a complaint:
+Copy the example environment file:
 
 ```bash
-curl -X POST http://localhost:8000/complaints \
-  -H "Content-Type: application/json" \
-  -d '{"email":"Hello, my name is Alice Johnson. My account ACC1023 was billed $120 but I expected $100."}'
+cp .env.example .env
 ```
-
-Resume a complaint that returned the `clarify` route:
-
-```bash
-curl -X POST http://localhost:8000/complaints/REQUEST_ID/clarification \
-  -H "Content-Type: application/json" \
-  -d '{"answers":{"account_id":"ACC1023"}}'
-```
-
-### CLI
-
-```bash
-python main.py --demo happy
-python main.py --demo missing_account
-python main.py --demo credit_card
-python main.py --file sample_emails/happy_path.txt
-python main.py --demo happy --auto --json
-```
-
-## LLM Configuration
-
-Copy `.env.example` to `.env`. OpenAI is used by default when no custom base URL is provided; any OpenAI-compatible provider can be selected with the same settings.
 
 ```env
 USE_LLM=1
@@ -139,48 +140,161 @@ LLM_BASE_URL=
 DATABASE_PATH=data/support_pipeline.db
 ```
 
-If configuration, network access, JSON parsing, or schema validation fails, the error is recorded in the workflow state and deterministic extraction is used. Unsafe input is escalated before extraction, so it cannot reach the configured provider.
+Leave `LLM_BASE_URL` blank for OpenAI, or point it to an OpenAI-compatible provider. If configuration, networking, JSON parsing, or schema validation fails, Resolve records the extraction error and uses its deterministic fallback.
 
-## Business Verification
+## What gets verified?
 
-The mock billing records include the customer name, actual bill, expected bill, and account status. Verification checks:
+The mock billing record contains the customer identity, actual bill, expected bill, and account status. A claim reaches `respond` only when every check passes.
 
-1. The account exists.
-2. The customer name matches the account.
-3. The claimed amount matches the recorded actual bill.
-4. The expected amount matches the recorded expected bill.
-5. The account is active.
-6. The customer-reported discrepancy matches the recorded discrepancy.
+| Check | Example failure code |
+| --- | --- |
+| Account exists | `ACCOUNT_NOT_FOUND` |
+| Customer identity matches | `IDENTITY_MISMATCH` |
+| Claimed billed amount matches | `CLAIMED_AMOUNT_MISMATCH` |
+| Expected amount matches | `EXPECTED_AMOUNT_MISMATCH` |
+| Account is active | `ACCOUNT_INACTIVE` |
+| Calculated discrepancy matches the record | `DISCREPANCY_MISMATCH` |
 
-The result contains booleans for each check, both discrepancy values, and reason codes. Only a complete match reaches `respond`; other safe requests reach `billing_review`.
+## API
 
-## SQLite Persistence
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/complaints` | Run and persist a billing complaint. |
+| `POST` | `/complaints/{request_id}/clarification` | Merge missing fields and resume. |
+| `GET` | `/complaints/{request_id}` | Read the latest persisted state. |
+| `POST` | `/complaints/stream` | Run a complaint with live workflow events. |
+| `POST` | `/complaints/{request_id}/clarification/stream` | Resume with live workflow events. |
+| `GET` | `/health` | Check the API and SQLite connection. |
+| `GET` | `/demo-config` | Report demo mode without exposing secrets. |
 
-The default database is `data/support_pipeline.db`. It has three intentionally small tables:
+<details>
+<summary><strong>Example request</strong></summary>
 
-- `workflow_states`: the latest Pydantic state for each request (after each completed node on the streaming path).
-- `execution_history`: ordered workflow events for each request.
-- `escalation_tickets`: billing and compliance escalation details.
+```bash
+curl -X POST http://127.0.0.1:8501/complaints \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "Hello, my name is Alice Johnson. My account ACC1023 was billed $120 but I expected $100."
+  }'
+```
 
-Set `DATABASE_PATH` to use a different file. No database server or migration tool is required for this demo; tables are created automatically.
+</details>
 
-## Tests
+<details>
+<summary><strong>Streaming event contract</strong></summary>
+
+The streaming endpoints emit server-sent events in this order:
+
+1. `request_started`
+2. `step_started`
+3. `step_completed`, including node duration and the validated state
+4. `complete`, including the final persisted state
+
+Runtime failures emit `error` without leaking the underlying exception. Validation and lookup failures remain normal HTTP errors before streaming begins.
+
+</details>
+
+## Architecture
+
+```text
+Browser UI
+  ├── Live graph + result inspector
+  ├── Editable speech transcription
+  └── Same-origin REST / SSE requests
+              │
+              ▼
+FastAPI ── ComplaintService ── LangGraph
+                                  ├── compliance
+                                  ├── extract
+                                  ├── validate / clarify
+                                  ├── verify
+                                  └── respond / escalate
+              │
+              ▼
+SQLite: workflow state + execution history + tickets
+```
+
+### Repository map
+
+```text
+├── api.py                    # REST, SSE, health, and static frontend routes
+├── service.py                # Application orchestration and persistence boundary
+├── persistence.py            # Lightweight SQLite store
+├── graph/workflow.py         # LangGraph nodes, branches, and live event wrappers
+├── nodes/                    # Compliance, extraction, validation, verification, outcomes
+├── state/workflow_state.py   # Shared typed workflow state
+├── models.py                 # Pydantic data contracts
+├── frontend/                 # Portfolio UI: HTML, CSS, and vanilla JavaScript
+├── sample_emails/            # Safe demonstration scenarios
+├── tests/                    # Unit, graph, persistence, API, and streaming tests
+├── scripts/dev               # One-command local launcher
+└── Dockerfile                # Single-container deployment
+```
+
+## Persistence
+
+SQLite is intentionally used to keep the demo easy to understand and deploy. The database is created automatically at `data/support_pipeline.db` with three tables:
+
+- `workflow_states` stores the latest Pydantic state after each completed streamed node.
+- `execution_history` stores ordered workflow events.
+- `escalation_tickets` stores billing and compliance review tickets.
+
+No database server or migration tool is required for this portfolio scope.
+
+## CLI and tests
+
+<details>
+<summary><strong>CLI examples</strong></summary>
+
+```bash
+python main.py --demo happy
+python main.py --demo missing_account
+python main.py --demo credit_card
+python main.py --file sample_emails/happy_path.txt
+python main.py --demo happy --auto --json
+```
+
+</details>
+
+Run the complete test suite:
 
 ```bash
 pytest -q
 ```
 
-The tests cover extraction fallback, compliance ordering, clarification resume, verification reason codes, graph routing, SQLite persistence, static assets, and streaming/API contracts. See [frontend/README.md](frontend/README.md) for frontend structure and a browser smoke-test checklist.
+The suite covers compliance ordering, structured extraction fallback, resumable clarification, reason-coded verification, graph routing, SQLite persistence, static assets, and REST/SSE contracts.
 
-## Simple Deployment
+## Deployment
 
-Build and run the entire website and API together:
+Build and run the complete website and API in one container:
 
 ```bash
-docker build -t billing-workflow-demo .
-docker run --rm -p 8000:8000 -v billing-demo-data:/app/data billing-workflow-demo
+docker build -t resolve-demo .
+docker run --rm \
+  -p 8000:8000 \
+  -v resolve-data:/app/data \
+  resolve-demo
 ```
 
-Open `http://localhost:8000`. Deploy the same Dockerfile to a container host; it respects the host's `PORT` environment variable. Configure `/health` as the health check, attach a persistent disk at `/app/data`, and enable HTTPS for speech input. Set LLM secrets in the host environment, never in frontend code. Leave `USE_LLM=0` for a free deterministic showcase.
+Open [`http://localhost:8000`](http://localhost:8000). The container respects the platform's `PORT` environment variable.
 
-This is deliberately a **public, no-auth demonstration**, not a production support system. Use synthetic data only: request IDs are not authorization, the database contains original input, the PII detector is pattern-based, and the public API is not rate-limited. Prefer deterministic mode for a public demo; enabling paid LLM calls requires host-level abuse controls and spend limits. Ticket details persist in SQLite; the workflow also writes text copies in `escalation_tickets/` (mount that directory too if you need the copies across container restarts).
+For a portfolio host:
+
+- Use `/health` as the health-check path.
+- Attach a persistent volume at `/app/data`.
+- Enable HTTPS for speech input.
+- Store LLM credentials in host environment variables.
+- Keep `USE_LLM=0` for a zero-cost deterministic showcase.
+- If enabling paid model calls, add host-level rate limits and spending controls.
+
+## Scope and safety
+
+Resolve is a public, no-auth portfolio demonstration. It does not send email, issue refunds, or modify real customer accounts.
+
+Use synthetic data only. Request IDs are not authorization tokens, original complaint text is persisted, the PII detector is pattern-based, and the public API is not rate-limited. Production use would require authentication, authorization, stronger secrets handling, rate limits, comprehensive data-loss prevention, audit controls, and integration with real billing and ticketing systems.
+
+---
+
+<p align="center">
+  Built to show practical GenAI orchestration: models interpret language, typed rules make decisions, and state keeps the process explainable.
+</p>
