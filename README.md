@@ -5,11 +5,11 @@
 <h1 align="center">Resolve</h1>
 
 <p align="center">
-  <strong>A stateful GenAI support and compliance pipeline for billing complaints.</strong>
+  <strong>A billing complaint should not disappear into a black box.</strong>
 </p>
 
 <p align="center">
-  Privacy first. Typed extraction. Explainable verification. A clear next step.
+  Resolve follows each request from the customer's first message to a verified response, clarification, or escalation.
 </p>
 
 <p align="center">
@@ -27,7 +27,8 @@
   <a href="#how-the-workflow-runs">Workflow</a> ·
   <a href="#api">API</a> ·
   <a href="#quick-start">Local setup</a> ·
-  <a href="#deployment">Deployment</a>
+  <a href="#deployment">Deployment</a> ·
+  <a href="docs/TECHNICAL_GUIDE.md">Technical guide</a>
 </p>
 
 <p align="center">
@@ -50,12 +51,6 @@ Resolve is deployed as one full-stack Docker service. FastAPI serves both the po
 | **Interactive API documentation** | [resolve-support-pipeline.onrender.com/docs](https://resolve-support-pipeline.onrender.com/docs) |
 | **Service health** | [resolve-support-pipeline.onrender.com/health](https://resolve-support-pipeline.onrender.com/health) |
 | **Source code** | [github.com/Tanishk237/Stateful-Support-Compliance-Pipeline](https://github.com/Tanishk237/Stateful-Support-Compliance-Pipeline) |
-
-> [!NOTE]
-> The app runs on Render's free tier. After 15 minutes without traffic, the first visit can take about a minute while the service wakes up. The local SQLite demo history resets whenever the free service sleeps or restarts.
-
-> [!CAUTION]
-> This is a public portfolio demo. Use the synthetic sample details shown in the interface—never submit real personal, payment, or account information.
 
 ## How to use the live app
 
@@ -94,16 +89,17 @@ flowchart TD
 
 The status line at the top of the playground identifies whether the hosted service is using the configured LLM or the deterministic fallback. Both modes run the same typed graph and explicit routing logic.
 
-## What is Resolve?
+## Why I built Resolve
 
-Resolve is a focused portfolio project that turns a billing complaint into one of four explicit outcomes: a drafted response, a request for clarification, a billing review, or a compliance escalation.
+I built Resolve around a question I kept coming back to: where should an LLM help, and where should ordinary code stay firmly in control?
 
-It demonstrates where GenAI is useful and where deterministic rules should stay in control. The language model extracts structured information from a **redacted** complaint; Pydantic, business rules, and LangGraph control validation, verification, routing, and persistence.
+The answer became a focused billing-support workflow. The model reads natural language and can draft a customer-facing reply. Pydantic models and deterministic business rules handle privacy checks, validation, account verification, discrepancy calculation, and routing. Every step leaves behind a typed state snapshot, so the result can be explained instead of merely trusted.
 
-> [!IMPORTANT]
-> Sensitive-data detection runs before any external LLM call. Unsafe input is redacted and routed to compliance without entering extraction.
+Sensitive-data detection runs before any external LLM call. If the complaint contains a supported sensitive pattern, Resolve redacts it and routes the request to compliance without entering extraction.
 
-## Why this project stands out
+For the complete code-to-deployment walkthrough, data model, failure paths, design tradeoffs, and interview talking points, read the [technical guide](docs/TECHNICAL_GUIDE.md).
+
+## What I wanted to get right
 
 | Capability | What it demonstrates |
 | --- | --- |
@@ -142,26 +138,6 @@ The graph exposes four routes deliberately, rather than hiding decisions behind 
 | `clarify` | Required information is missing; the workflow is paused and resumable. |
 | `billing_review` | Business verification failed or clarification attempts were exhausted. |
 | `compliance_escalation` | Sensitive information was detected before extraction. |
-
-## Interactive demo
-
-The browser experience is a real interface over the backend, not a scripted mock.
-
-- Choose from verified, clarification, privacy, and account-mismatch scenarios.
-- Watch the active backend node and route update through server-sent events.
-- Select any completed graph node to inspect its actual output.
-- Review extracted fields, compliance findings, verification checks, and activity history.
-- Answer clarification questions and resume the same request.
-- Reopen a persisted request, copy its output, or download its JSON state.
-- Dictate a complaint with browser speech-to-text, then edit it before submission.
-- Switch themes, pause motion, and navigate the result panels by keyboard.
-
-<p align="center">
-  <img src="frontend/assets/workflow-sculpture.jpg" width="460" alt="A translucent green continuous loop representing the stateful Resolve workflow">
-</p>
-
-> [!NOTE]
-> Speech recognition depends on browser support and requires HTTPS or localhost. The browser's speech provider may process audio; Resolve only receives the reviewed transcript.
 
 ## Quick start
 
@@ -352,13 +328,14 @@ The public portfolio is deployed from the `main` branch as a single Render Docke
 | Runtime | Docker / Python 3.11 |
 | Server | Uvicorn serving `api:app` |
 | Health check | `/health` |
-| Deployment | Automatic after a push to `main` |
+| Source branch | `main` |
+| Deployment | Manual, or automatic when connected through a supported Git provider |
 
 The browser, static assets, REST endpoints, and event stream all use the same origin. This keeps deployment simple, avoids frontend/backend URL configuration, and allows the application to work as one portfolio link.
 
 ```mermaid
 flowchart LR
-    GH[GitHub main branch] -->|push| RB[Render Docker build]
+    GH[GitHub main branch] -->|deploy selected commit| RB[Render Docker build]
     RB --> UV[Uvicorn + FastAPI]
     UV --> UI[Portfolio UI]
     UV --> API[REST + SSE API]
@@ -391,14 +368,14 @@ For a portfolio host:
 
 On Render's free tier, do not attach a persistent-disk expectation to SQLite. The database works during the active instance lifetime, but it is recreated after a spin-down, restart, or redeploy. That tradeoff keeps the hosted showcase free and the repository easy to understand.
 
-## Scope and safety
+## Where I drew the line
 
-Resolve is a public, no-auth portfolio demonstration. It does not send email, issue refunds, or modify real customer accounts.
+Resolve is a portfolio project, so I kept the boundary honest and understandable. It handles billing complaints only, verifies against synthetic accounts, and uses SQLite plus a single-process application design to keep the code approachable. It does not send email, issue refunds, or modify real customer accounts.
 
-Use synthetic data only. Request IDs are not authorization tokens, original complaint text is persisted, the PII detector is pattern-based, and the public API is not rate-limited. Production use would require authentication, authorization, stronger secrets handling, rate limits, comprehensive data-loss prevention, audit controls, and integration with real billing and ticketing systems.
+The public demo has no authentication, persists the original complaint, uses pattern-based PII detection, and treats request IDs as identifiers rather than secrets. A production version would need authentication and authorization, managed durable storage, distributed rate limits, stronger data-loss prevention, formal audit controls, and integrations with real billing and ticketing systems.
 
 ---
 
 <p align="center">
-  Built to show practical GenAI orchestration: models interpret language, typed rules make decisions, and state keeps the process explainable.
+  I built Resolve to show practical, bounded GenAI: models interpret language, typed rules make decisions, and state keeps the process explainable.
 </p>
